@@ -1,12 +1,12 @@
-import { build, emptyDir } from "https://deno.land/x/dnt@0.30.0/mod.ts";
-import * as esbuild from "https://deno.land/x/esbuild@v0.14.45/mod.js";
+import * as dnt from "https://deno.land/x/dnt@0.30.0/mod.ts";
+import * as esbuild from "https://deno.land/x/esbuild@v0.17.11/mod.js";
 import packageInfo from "./package.json" assert { type: "json" };
 
-await emptyDir("./dist");
+await dnt.emptyDir("./dist");
 
 //** NPM ES Module for Node.js and Browser */
 
-await build({
+await dnt.build({
   entryPoints: ["./mod.ts"],
   outDir: "./dist",
   test: false,

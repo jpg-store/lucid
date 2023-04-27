@@ -239,7 +239,7 @@ export class Utils {
   }
 }
 
-function addressFromHexOrBech32(address: string): Core.Address {
+function addressFromHexOrBech32(address: string): C.Address {
   try {
     return C.Address.from_bytes(fromHex(address));
   } catch (_e) {

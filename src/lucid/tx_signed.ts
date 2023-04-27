@@ -13,7 +13,7 @@ export class TxSigned {
 
   async submit(): Promise<TxHash> {
     return await (this.lucid.wallet || this.lucid.provider).submitTx(
-      toHex(this.txSigned.to_bytes()),
+      toHex(this.txSigned.to_bytes())
     );
   }
 

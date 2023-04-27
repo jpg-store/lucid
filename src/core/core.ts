@@ -6,7 +6,6 @@ import * as CNode from "./wasm_modules/cardano_multiplatform_lib_nodejs/cardano_
 import * as MNode from "./wasm_modules/cardano_message_signing_nodejs/cardano_message_signing.js";
 
 export { Core };
-
 // dnt-shim-ignore
 const isNode = typeof window === "undefined";
 

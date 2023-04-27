@@ -106,7 +106,7 @@ export class Tx {
   /**
    * All assets should be of the same policy id.
    * You can chain mintAssets functions together if you need to mint assets with different policy ids.
-   * If the plutus script doesn't need a redeemer, you still need to specifiy the empty redeemer.
+   * If the plutus script doesn't need a redeemer, you still need to specifiy the void redeemer.
    */
   mintAssets(assets: Assets, redeemer?: Redeemer): Tx {
     this.tasks.push((that) => {
@@ -497,6 +497,16 @@ export class Tx {
     return this;
   }
 
+  /** Explicitely set the network id in the transaction body. */
+  addNetworkId(id: number): Tx {
+    this.tasks.push((that) => {
+      that.txBuilder.set_network_id(
+        C.NetworkId.from_bytes(fromHex(id.toString(16).padStart(2, "0")))
+      );
+    });
+    return this;
+  }
+
   attachSpendingValidator(spendingValidator: SpendingValidator): Tx {
     this.tasks.push((that) => {
       attachScript(that, spendingValidator);
@@ -570,13 +580,24 @@ export class Tx {
     const utxos = await this.lucid.wallet.getUtxosCore();
     const collateral = await this.lucid.wallet.getCollateralCore();
 
-    const changeAddress: Core.Address = addressFromWithNetworkCheck(
+    const changeAddress: C.Address = addressFromWithNetworkCheck(
       options?.change?.address || (await this.lucid.wallet.address()),
       this.lucid
     );
 
     if (options?.coinSelection || options?.coinSelection === undefined) {
-      this.txBuilder.add_inputs_from(utxos, changeAddress);
+      this.txBuilder.add_inputs_from(
+        utxos,
+        changeAddress,
+        Uint32Array.from([
+          200, // weight ideal > 100 inputs
+          1000, // weight ideal < 100 inputs
+          1500, // weight assets if plutus
+          800, // weight assets if not plutus
+          800, // weight distance if not plutus
+          5000, // weight utxos
+        ])
+      );
     }
 
     if (enableChangeSplitting) {
@@ -780,7 +801,7 @@ function attachScript(
 async function createPoolRegistration(
   poolParams: PoolParams,
   lucid: Lucid
-): Promise<Core.PoolRegistration> {
+): Promise<C.PoolRegistration> {
   const poolOwners = C.Ed25519KeyHashes.new();
   poolParams.owners.forEach((owner) => {
     const { stakeCredential } = lucid.utils.getAddressDetails(owner);
@@ -860,7 +881,7 @@ async function createPoolRegistration(
 function addressFromWithNetworkCheck(
   address: Address | RewardAddress,
   lucid: Lucid
-): Core.Address {
+): C.Address {
   const addressDetails = lucid.utils.getAddressDetails(address);
 
   const actualNetworkId = networkToId(lucid.network);

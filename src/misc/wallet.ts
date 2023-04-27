@@ -27,7 +27,7 @@ export function walletFromSeed(
     addressType?: "Base" | "Enterprise";
     accountIndex?: number;
     network?: Network;
-  } = { addressType: "Base", accountIndex: 0, network: "Mainnet" },
+  } = { addressType: "Base", accountIndex: 0, network: "Mainnet" }
 ): FromSeed {
   function harden(num: number): number {
     if (typeof num !== "number") throw new Error("Type number required here!");
@@ -39,10 +39,11 @@ export function walletFromSeed(
     fromHex(entropy),
     options.password
       ? new TextEncoder().encode(options.password)
-      : new Uint8Array(),
+      : new Uint8Array()
   );
 
-  const accountKey = rootKey.derive(harden(1852))
+  const accountKey = rootKey
+    .derive(harden(1852))
     .derive(harden(1815))
     .derive(harden(options.accountIndex!));
 
@@ -54,23 +55,31 @@ export function walletFromSeed(
 
   const networkId = options.network === "Mainnet" ? 1 : 0;
 
-  const address = options.addressType === "Base"
-    ? C.BaseAddress.new(
-      networkId,
-      C.StakeCredential.from_keyhash(paymentKeyHash),
-      C.StakeCredential.from_keyhash(stakeKeyHash),
-    ).to_address().to_bech32(undefined)
-    : C.EnterpriseAddress.new(
-      networkId,
-      C.StakeCredential.from_keyhash(paymentKeyHash),
-    ).to_address().to_bech32(undefined);
+  const address =
+    options.addressType === "Base"
+      ? C.BaseAddress.new(
+          networkId,
+          C.StakeCredential.from_keyhash(paymentKeyHash),
+          C.StakeCredential.from_keyhash(stakeKeyHash)
+        )
+          .to_address()
+          .to_bech32(undefined)
+      : C.EnterpriseAddress.new(
+          networkId,
+          C.StakeCredential.from_keyhash(paymentKeyHash)
+        )
+          .to_address()
+          .to_bech32(undefined);
 
-  const rewardAddress = options.addressType === "Base"
-    ? C.RewardAddress.new(
-      networkId,
-      C.StakeCredential.from_keyhash(stakeKeyHash),
-    ).to_address().to_bech32(undefined)
-    : null;
+  const rewardAddress =
+    options.addressType === "Base"
+      ? C.RewardAddress.new(
+          networkId,
+          C.StakeCredential.from_keyhash(stakeKeyHash)
+        )
+          .to_address()
+          .to_bech32(undefined)
+      : null;
 
   return {
     address,
@@ -83,7 +92,7 @@ export function walletFromSeed(
 export function discoverOwnUsedTxKeyHashes(
   tx: Core.Transaction,
   ownKeyHashes: Array<KeyHash>,
-  ownUtxos: Array<UTxO>,
+  ownUtxos: Array<UTxO>
 ): Array<KeyHash> {
   const usedKeyHashes = [];
 
@@ -94,11 +103,9 @@ export function discoverOwnUsedTxKeyHashes(
     const txHash = toHex(input.transaction_id().to_bytes());
     const outputIndex = parseInt(input.index().to_str());
     const utxo = ownUtxos.find(
-      (utxo) => utxo.txHash === txHash && utxo.outputIndex === outputIndex,
+      (utxo) => utxo.txHash === txHash && utxo.outputIndex === outputIndex
     );
-    if (
-      utxo
-    ) {
+    if (utxo) {
       const { paymentCredential } = getAddressDetails(utxo.address);
       usedKeyHashes.push(paymentCredential?.hash!);
     }
@@ -107,7 +114,7 @@ export function discoverOwnUsedTxKeyHashes(
   const txBody = tx.body();
 
   // key hashes from certificates
-  function keyHashFromCert(txBody: Core.TransactionBody) {
+  function keyHashFromCert(txBody: C.TransactionBody) {
     const certs = txBody.certs();
     if (!certs) return;
     for (let i = 0; i < certs.len(); i++) {
@@ -120,24 +127,18 @@ export function discoverOwnUsedTxKeyHashes(
       } else if (cert.kind() === 1) {
         const credential = cert.as_stake_deregistration()?.stake_credential();
         if (credential?.kind() === 0) {
-          const keyHash = toHex(
-            credential.to_keyhash()!.to_bytes(),
-          );
+          const keyHash = toHex(credential.to_keyhash()!.to_bytes());
           usedKeyHashes.push(keyHash);
         }
       } else if (cert.kind() === 2) {
         const credential = cert.as_stake_delegation()?.stake_credential();
         if (credential?.kind() === 0) {
-          const keyHash = toHex(
-            credential.to_keyhash()!.to_bytes(),
-          );
+          const keyHash = toHex(credential.to_keyhash()!.to_bytes());
           usedKeyHashes.push(keyHash);
         }
       } else if (cert.kind() === 3) {
-        const poolParams = cert
-          .as_pool_registration()?.pool_params()!;
-        const owners = poolParams
-          ?.pool_owners();
+        const poolParams = cert.as_pool_registration()?.pool_params()!;
+        const owners = poolParams?.pool_owners();
         if (!owners) break;
         for (let i = 0; i < owners.len(); i++) {
           const keyHash = toHex(owners.get(i).to_bytes());
@@ -151,16 +152,15 @@ export function discoverOwnUsedTxKeyHashes(
       } else if (cert.kind() === 6) {
         const instantRewards = cert
           .as_move_instantaneous_rewards_cert()
-          ?.move_instantaneous_reward().as_to_stake_creds()
+          ?.move_instantaneous_reward()
+          .as_to_stake_creds()
           ?.keys();
         if (!instantRewards) break;
         for (let i = 0; i < instantRewards.len(); i++) {
           const credential = instantRewards.get(i);
 
           if (credential.kind() === 0) {
-            const keyHash = toHex(
-              credential.to_keyhash()!.to_bytes(),
-            );
+            const keyHash = toHex(credential.to_keyhash()!.to_bytes());
             usedKeyHashes.push(keyHash);
           }
         }
@@ -172,7 +172,7 @@ export function discoverOwnUsedTxKeyHashes(
   // key hashes from withdrawals
 
   const withdrawals = txBody.withdrawals();
-  function keyHashFromWithdrawal(withdrawals: Core.Withdrawals) {
+  function keyHashFromWithdrawal(withdrawals: C.Withdrawals) {
     const rewardAddresses = withdrawals.keys();
     for (let i = 0; i < rewardAddresses.len(); i++) {
       const credential = rewardAddresses.get(i).payment_cred();
@@ -185,12 +185,12 @@ export function discoverOwnUsedTxKeyHashes(
 
   // key hashes from scripts
   const scripts = tx.witness_set().native_scripts();
-  function keyHashFromScript(scripts: Core.NativeScripts) {
+  function keyHashFromScript(scripts: C.NativeScripts) {
     for (let i = 0; i < scripts.len(); i++) {
       const script = scripts.get(i);
       if (script.kind() === 0) {
         const keyHash = toHex(
-          script.as_script_pubkey()!.addr_keyhash().to_bytes(),
+          script.as_script_pubkey()!.addr_keyhash().to_bytes()
         );
         usedKeyHashes.push(keyHash);
       }
@@ -214,9 +214,7 @@ export function discoverOwnUsedTxKeyHashes(
   const requiredSigners = txBody.required_signers();
   if (requiredSigners) {
     for (let i = 0; i < requiredSigners.len(); i++) {
-      usedKeyHashes.push(
-        toHex(requiredSigners.get(i).to_bytes()),
-      );
+      usedKeyHashes.push(toHex(requiredSigners.get(i).to_bytes()));
     }
   }
 
@@ -228,11 +226,9 @@ export function discoverOwnUsedTxKeyHashes(
       const txHash = toHex(input.transaction_id().to_bytes());
       const outputIndex = parseInt(input.index().to_str());
       const utxo = ownUtxos.find(
-        (utxo) => utxo.txHash === txHash && utxo.outputIndex === outputIndex,
+        (utxo) => utxo.txHash === txHash && utxo.outputIndex === outputIndex
       );
-      if (
-        utxo
-      ) {
+      if (utxo) {
         const { paymentCredential } = getAddressDetails(utxo.address);
         usedKeyHashes.push(paymentCredential?.hash!);
       }

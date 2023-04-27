@@ -1,4 +1,4 @@
-import { Core } from "../core/mod.ts";
+import { C, Core } from "../core/mod.ts";
 
 type CostModel = Record<string, number>;
 
@@ -37,7 +37,7 @@ export interface Provider {
   /** Query UTxOs by address or payment credential filtered by a specific unit. */
   getUtxosWithUnit(
     addressOrCredential: Address | Credential,
-    unit: Unit,
+    unit: Unit
   ): Promise<UTxO[]>;
   /** Query a UTxO by a unit. It needs to be an NFT (or optionally the entire supply in one UTxO). */
   getUtxoByUnit(unit: Unit): Promise<UTxO>;
@@ -184,7 +184,7 @@ export interface Wallet {
   signTx(tx: Core.Transaction): Promise<Core.TransactionWitnessSet>;
   signMessage(
     address: Address | RewardAddress,
-    payload: Payload,
+    payload: Payload
   ): Promise<SignedMessage>;
   submitTx(signedTx: Transaction): Promise<TxHash>;
 }
