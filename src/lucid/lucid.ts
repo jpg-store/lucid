@@ -20,10 +20,12 @@ import {
   OutRef,
   Payload,
   PrivateKey,
+  ProtocolParameters,
   Provider,
   RewardAddress,
   SignedMessage,
   Slot,
+  SlotConfig,
   Transaction,
   TxHash,
   Unit,
@@ -39,11 +41,12 @@ import { Message } from "./message.ts";
 import { SLOT_CONFIG_NETWORK } from "../plutus/time.ts";
 import { Constr, Data } from "../plutus/data.ts";
 import { Emulator } from "../provider/emulator.ts";
-import { getTransactionBuilderConfig } from "../utils/transaction_builder_config.ts";
 import { Freeable, Freeables } from "../utils/freeable.ts";
+import { getTransactionBuilderConfig } from "../utils/transaction_builder_config.ts";
 
 export class Lucid {
-  txBuilderConfig!: C.TransactionBuilderConfig;
+  protocolParameters?: ProtocolParameters;
+  slotConfig!: SlotConfig;
   wallet!: Wallet;
   provider!: Provider;
   network: Network = "Mainnet";
@@ -54,7 +57,6 @@ export class Lucid {
     if (network) lucid.network = network;
     if (provider) {
       lucid.provider = provider;
-      const protocolParameters = await provider.getProtocolParameters();
 
       if (lucid.provider instanceof Emulator) {
         lucid.network = "Custom";
@@ -65,21 +67,31 @@ export class Lucid {
         };
       }
 
-      const slotConfig = SLOT_CONFIG_NETWORK[lucid.network];
-      const txBuilderConfig = getTransactionBuilderConfig(
-        protocolParameters,
-        slotConfig,
-        {
-          // deno-lint-ignore no-explicit-any
-          url: (provider as any)?.url,
-          // deno-lint-ignore no-explicit-any
-          projectId: (provider as any)?.projectId,
-        },
-      );
-      lucid.txBuilderConfig = txBuilderConfig;
+      const protocolParameters = await provider.getProtocolParameters();
+      lucid.protocolParameters = protocolParameters;
     }
+    lucid.slotConfig = SLOT_CONFIG_NETWORK[lucid.network];
+
     lucid.utils = new Utils(lucid);
     return lucid;
+  }
+
+  getTransactionBuilderConfig(): C.TransactionBuilderConfig {
+    if (!this.protocolParameters) {
+      throw new Error(
+        "Protocol parameters or slot config not set. Set a provider or iniatilize with protocol parameters.",
+      );
+    }
+    return getTransactionBuilderConfig(
+      this.protocolParameters,
+      this.slotConfig,
+      {
+        // deno-lint-ignore no-explicit-any
+        url: (this.provider as any)?.url,
+        // deno-lint-ignore no-explicit-any
+        projectId: (this.provider as any)?.projectId,
+      },
+    );
   }
 
   /**
@@ -91,12 +103,16 @@ export class Lucid {
       throw new Error("Cannot switch when on custom network.");
     }
     const lucid = await Lucid.new(provider, network);
-    this.txBuilderConfig = lucid.txBuilderConfig;
+    this.protocolParameters = lucid.protocolParameters;
+    this.slotConfig = lucid.slotConfig;
     this.provider = provider || this.provider;
+    // Given that protoclParameters and provider are optional we should fetch protocol parameters if they are not set when switiching providers
+    if (!this.protocolParameters && provider) {
+      this.protocolParameters = await provider.getProtocolParameters();
+    }
     this.network = network || this.network;
     this.wallet = lucid.wallet;
 
-    lucid.free();
     return this;
   }
 
@@ -396,12 +412,14 @@ export class Lucid {
       },
       getUtxosCore: async (): Promise<C.TransactionUnspentOutputs> => {
         const coreUtxos = C.TransactionUnspentOutputs.new();
-        (utxos ? utxos : await this.utxosAt(paymentCredentialOf(address)))
-          .forEach((utxo) => {
-            const coreUtxo = utxoToCore(utxo);
-            coreUtxos.add(coreUtxo);
-            coreUtxo.free();
-          });
+        (utxos
+          ? utxos
+          : await this.utxosAt(paymentCredentialOf(address))
+        ).forEach((utxo) => {
+          const coreUtxo = utxoToCore(utxo);
+          coreUtxos.add(coreUtxo);
+          coreUtxo.free();
+        });
 
         return coreUtxos;
       },
@@ -550,9 +568,5 @@ export class Lucid {
 
     Freeables.free(...bucket);
     return this;
-  }
-
-  free() {
-    this.txBuilderConfig.free();
   }
 }
