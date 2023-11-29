@@ -60,13 +60,21 @@ export class Emulator {
         this.slot = 0;
         this.time = Date.now();
         this.ledger = {};
-        accounts.forEach(({ address, assets }, index) => {
+        accounts.forEach(({ address, assets, outputData }, index) => {
+            if ([outputData?.hash, outputData?.asHash, outputData?.inline].filter((b) => b).length > 1) {
+                throw new Error("Not allowed to set hash, asHash and inline at the same time.");
+            }
             this.ledger[GENESIS_HASH + index] = {
                 utxo: {
                     txHash: GENESIS_HASH,
                     outputIndex: index,
                     address,
                     assets,
+                    datumHash: outputData?.asHash
+                        ? C.hash_plutus_data(C.PlutusData.from_bytes(fromHex(outputData.asHash))).to_hex()
+                        : outputData?.hash,
+                    datum: outputData?.inline,
+                    scriptRef: outputData?.scriptRef,
                 },
                 spent: false,
             };
@@ -168,13 +176,13 @@ export class Emulator {
      * Stake keys need to be registered and delegated like on a real chain in order to receive rewards.
      */
     distributeRewards(rewards) {
-        for (const [rewardAddress, { registeredStake, delegation }] of Object.entries(this.chain)) {
+        for (const [rewardAddress, { registeredStake, delegation },] of Object.entries(this.chain)) {
             if (registeredStake && delegation.poolId) {
                 this.chain[rewardAddress] = {
                     registeredStake,
                     delegation: {
                         poolId: delegation.poolId,
-                        rewards: delegation.rewards += rewards,
+                        rewards: (delegation.rewards += rewards),
                     },
                 };
             }
@@ -198,18 +206,29 @@ export class Emulator {
               - Withdrawals
               - Validity interval
          */
+        const bucket = [];
         const desTx = C.Transaction.from_bytes(fromHex(tx));
+        bucket.push(desTx);
         const body = desTx.body();
+        bucket.push(body);
         const witnesses = desTx.witness_set();
+        bucket.push(witnesses);
         const datums = witnesses.plutus_data();
-        const txHash = C.hash_transaction(body).to_hex();
+        bucket.push(datums);
+        const transactionHash = C.hash_transaction(body);
+        bucket.push(transactionHash);
+        const txHash = transactionHash.to_hex();
         // Validity interval
         // Lower bound is inclusive?
         // Upper bound is inclusive?
-        const lowerBound = body.validity_start_interval()
-            ? parseInt(body.validity_start_interval().to_str())
+        const validityStartInterval = body.validity_start_interval();
+        bucket.push(validityStartInterval);
+        const lowerBound = validityStartInterval
+            ? parseInt(validityStartInterval.to_str())
             : null;
-        const upperBound = body.ttl() ? parseInt(body.ttl().to_str()) : null;
+        const ttl = body.ttl();
+        bucket.push(ttl);
+        const upperBound = ttl ? parseInt(ttl.to_str()) : null;
         if (Number.isInteger(lowerBound) && this.slot < lowerBound) {
             throw new Error(`Lower bound (${lowerBound}) not in slot range (${this.slot}).`);
         }
@@ -221,7 +240,10 @@ export class Emulator {
             const table = {};
             for (let i = 0; i < (datums?.len() || 0); i++) {
                 const datum = datums.get(i);
-                const datumHash = C.hash_plutus_data(datum).to_hex();
+                bucket.push(datum);
+                const plutusDataHash = C.hash_plutus_data(datum);
+                bucket.push(plutusDataHash);
+                const datumHash = plutusDataHash.to_hex();
                 table[datumHash] = toHex(datum.to_bytes());
             }
             return table;
@@ -230,10 +252,18 @@ export class Emulator {
         // Witness keys
         const keyHashes = (() => {
             const keyHashes = [];
-            for (let i = 0; i < (witnesses.vkeys()?.len() || 0); i++) {
-                const witness = witnesses.vkeys().get(i);
-                const publicKey = witness.vkey().public_key();
-                const keyHash = publicKey.hash().to_hex();
+            const vkeys = witnesses.vkeys();
+            bucket.push(vkeys);
+            for (let i = 0; i < (vkeys?.len() || 0); i++) {
+                const witness = vkeys.get(i);
+                bucket.push(witness);
+                const vkey = witness.vkey();
+                bucket.push(vkey);
+                const publicKey = vkey.public_key();
+                bucket.push(publicKey);
+                const hash = publicKey.hash();
+                bucket.push(hash);
+                const keyHash = hash.to_hex();
                 if (!publicKey.verify(fromHex(txHash), witness.signature())) {
                     throw new Error(`Invalid vkey witness. Key hash: ${keyHash}`);
                 }
@@ -243,22 +273,39 @@ export class Emulator {
         })();
         // We only need this to verify native scripts. The check happens in the CML.
         const edKeyHashes = C.Ed25519KeyHashes.new();
-        keyHashes.forEach((keyHash) => edKeyHashes.add(C.Ed25519KeyHash.from_hex(keyHash)));
+        bucket.push(edKeyHashes);
+        keyHashes.forEach((keyHash) => {
+            const ed25519KeyHash = C.Ed25519KeyHash.from_hex(keyHash);
+            bucket.push(ed25519KeyHash);
+            edKeyHashes.add(ed25519KeyHash);
+        });
         const nativeHashes = (() => {
             const scriptHashes = [];
-            for (let i = 0; i < (witnesses.native_scripts()?.len() || 0); i++) {
-                const witness = witnesses.native_scripts().get(i);
-                const scriptHash = witness.hash(C.ScriptHashNamespace.NativeScript)
-                    .to_hex();
-                if (!witness.verify(Number.isInteger(lowerBound)
+            const nativeScripts = witnesses.native_scripts();
+            bucket.push(nativeScripts);
+            for (let i = 0; i < (nativeScripts?.len() || 0); i++) {
+                const witness = nativeScripts.get(i);
+                bucket.push(witness);
+                const hash = witness.hash(C.ScriptHashNamespace.NativeScript);
+                bucket.push(hash);
+                const scriptHash = hash.to_hex();
+                const lBound = Number.isInteger(lowerBound)
                     ? C.BigNum.from_str(lowerBound.toString())
-                    : undefined, Number.isInteger(upperBound)
+                    : undefined;
+                bucket.push(lBound);
+                const uBound = Number.isInteger(upperBound)
                     ? C.BigNum.from_str(upperBound.toString())
-                    : undefined, edKeyHashes)) {
+                    : undefined;
+                bucket.push(uBound);
+                if (!witness.verify(lBound, uBound, edKeyHashes)) {
                     throw new Error(`Invalid native script witness. Script hash: ${scriptHash}`);
                 }
-                for (let i = 0; i < witness.get_required_signers().len(); i++) {
-                    const keyHash = witness.get_required_signers().get(i).to_hex();
+                const requiredSigners = witness.get_required_signers();
+                bucket.push(requiredSigners);
+                for (let i = 0; i < requiredSigners.len(); i++) {
+                    const hash = requiredSigners.get(i);
+                    bucket.push(hash);
+                    const keyHash = hash.to_hex();
                     consumedHashes.add(keyHash);
                 }
                 scriptHashes.push(scriptHash);
@@ -269,27 +316,41 @@ export class Emulator {
         const plutusHashesOptional = [];
         const plutusHashes = (() => {
             const scriptHashes = [];
-            for (let i = 0; i < (witnesses.plutus_scripts()?.len() || 0); i++) {
-                const script = witnesses.plutus_scripts().get(i);
-                const scriptHash = script.hash(C.ScriptHashNamespace.PlutusV1)
-                    .to_hex();
+            const plutusScripts = witnesses.plutus_scripts();
+            bucket.push(plutusScripts);
+            for (let i = 0; i < (plutusScripts?.len() || 0); i++) {
+                const script = plutusScripts.get(i);
+                bucket.push(script);
+                const hash = script.hash(C.ScriptHashNamespace.PlutusV1);
+                bucket.push(hash);
+                const scriptHash = hash.to_hex();
                 scriptHashes.push(scriptHash);
             }
-            for (let i = 0; i < (witnesses.plutus_v2_scripts()?.len() || 0); i++) {
-                const script = witnesses.plutus_v2_scripts().get(i);
-                const scriptHash = script.hash(C.ScriptHashNamespace.PlutusV2)
-                    .to_hex();
+            const plutusV2Scripts = witnesses.plutus_v2_scripts();
+            bucket.push(plutusV2Scripts);
+            for (let i = 0; i < (plutusV2Scripts?.len() || 0); i++) {
+                const script = plutusV2Scripts.get(i);
+                bucket.push(script);
+                const hash = script.hash(C.ScriptHashNamespace.PlutusV2);
+                bucket.push(hash);
+                const scriptHash = hash.to_hex();
                 scriptHashes.push(scriptHash);
             }
             return scriptHashes;
         })();
         const inputs = body.inputs();
+        bucket.push(inputs);
         inputs.sort();
         const resolvedInputs = [];
         // Check existence of inputs and look for script refs.
         for (let i = 0; i < inputs.len(); i++) {
             const input = inputs.get(i);
-            const outRef = input.transaction_id().to_hex() + input.index().to_str();
+            bucket.push(input);
+            const transactionId = input.transaction_id();
+            bucket.push(transactionId);
+            const transactionIndex = input.index();
+            bucket.push(transactionIndex);
+            const outRef = transactionId.to_hex() + transactionIndex.to_str();
             const entryLedger = this.ledger[outRef];
             const { entry, type } = !entryLedger
                 ? { entry: this.mempool[outRef], type: "Mempool" }
@@ -305,17 +366,26 @@ export class Emulator {
                 switch (scriptRef.type) {
                     case "Native": {
                         const script = C.NativeScript.from_bytes(fromHex(scriptRef.script));
-                        nativeHashesOptional[script.hash(C.ScriptHashNamespace.NativeScript).to_hex()] = script;
+                        bucket.push(script);
+                        const hash = script.hash(C.ScriptHashNamespace.NativeScript);
+                        bucket.push(hash);
+                        nativeHashesOptional[hash.to_hex()] = script;
                         break;
                     }
                     case "PlutusV1": {
                         const script = C.PlutusScript.from_bytes(fromHex(scriptRef.script));
-                        plutusHashesOptional.push(script.hash(C.ScriptHashNamespace.PlutusV1).to_hex());
+                        bucket.push(script);
+                        const hash = script.hash(C.ScriptHashNamespace.PlutusV1);
+                        bucket.push(hash);
+                        plutusHashesOptional.push(hash.to_hex());
                         break;
                     }
                     case "PlutusV2": {
                         const script = C.PlutusScript.from_bytes(fromHex(scriptRef.script));
-                        plutusHashesOptional.push(script.hash(C.ScriptHashNamespace.PlutusV2).to_hex());
+                        bucket.push(script);
+                        const hash = script.hash(C.ScriptHashNamespace.PlutusV2);
+                        bucket.push(hash);
+                        plutusHashesOptional.push(hash.to_hex());
                         break;
                     }
                 }
@@ -325,9 +395,16 @@ export class Emulator {
             resolvedInputs.push({ entry, type });
         }
         // Check existence of reference inputs and look for script refs.
-        for (let i = 0; i < (body.reference_inputs()?.len() || 0); i++) {
-            const input = body.reference_inputs().get(i);
-            const outRef = input.transaction_id().to_hex() + input.index().to_str();
+        const referenceInputs = body.reference_inputs();
+        bucket.push(referenceInputs);
+        for (let i = 0; i < (referenceInputs?.len() || 0); i++) {
+            const input = referenceInputs.get(i);
+            bucket.push(input);
+            const inputId = input.transaction_id();
+            bucket.push(inputId);
+            const inputIndex = input.index();
+            bucket.push(inputIndex);
+            const outRef = inputId.to_hex() + inputIndex.to_str();
             const entry = this.ledger[outRef] || this.mempool[outRef];
             if (!entry || entry.spent) {
                 throw new Error(`Could not read UTxO: ${JSON.stringify({
@@ -340,17 +417,26 @@ export class Emulator {
                 switch (scriptRef.type) {
                     case "Native": {
                         const script = C.NativeScript.from_bytes(fromHex(scriptRef.script));
-                        nativeHashesOptional[script.hash(C.ScriptHashNamespace.NativeScript).to_hex()] = script;
+                        bucket.push(script);
+                        const hash = script.hash(C.ScriptHashNamespace.NativeScript);
+                        bucket.push(hash);
+                        nativeHashesOptional[hash.to_hex()] = script;
                         break;
                     }
                     case "PlutusV1": {
                         const script = C.PlutusScript.from_bytes(fromHex(scriptRef.script));
-                        plutusHashesOptional.push(script.hash(C.ScriptHashNamespace.PlutusV1).to_hex());
+                        bucket.push(script);
+                        const hash = script.hash(C.ScriptHashNamespace.PlutusV1);
+                        bucket.push(hash);
+                        plutusHashesOptional.push(hash.to_hex());
                         break;
                     }
                     case "PlutusV2": {
                         const script = C.PlutusScript.from_bytes(fromHex(scriptRef.script));
-                        plutusHashesOptional.push(script.hash(C.ScriptHashNamespace.PlutusV2).to_hex());
+                        bucket.push(script);
+                        const hash = script.hash(C.ScriptHashNamespace.PlutusV2);
+                        bucket.push(hash);
+                        plutusHashesOptional.push(hash.to_hex());
                         break;
                     }
                 }
@@ -366,11 +452,18 @@ export class Emulator {
                 3: "Reward",
             };
             const collected = [];
-            for (let i = 0; i < (witnesses.redeemers()?.len() || 0); i++) {
-                const redeemer = witnesses.redeemers().get(i);
+            const redeemers = witnesses.redeemers();
+            bucket.push(redeemers);
+            for (let i = 0; i < (redeemers?.len() || 0); i++) {
+                const redeemer = redeemers.get(i);
+                bucket.push(redeemer);
+                const tag = redeemer.tag();
+                bucket.push(tag);
+                const redeemerIndex = redeemer.index();
+                bucket.push(redeemerIndex);
                 collected.push({
-                    tag: tagMap[redeemer.tag().kind()],
-                    index: parseInt(redeemer.index().to_str()),
+                    tag: tagMap[tag.kind()],
+                    index: parseInt(redeemerIndex.to_str()),
                 });
             }
             return collected;
@@ -390,11 +483,15 @@ export class Emulator {
                         break;
                     }
                     else if (nativeHashesOptional[credential.hash]) {
-                        if (!nativeHashesOptional[credential.hash].verify(Number.isInteger(lowerBound)
+                        const lBound = Number.isInteger(lowerBound)
                             ? C.BigNum.from_str(lowerBound.toString())
-                            : undefined, Number.isInteger(upperBound)
+                            : undefined;
+                        bucket.push(lBound);
+                        const uBound = Number.isInteger(upperBound)
                             ? C.BigNum.from_str(upperBound.toString())
-                            : undefined, edKeyHashes)) {
+                            : undefined;
+                        bucket.push(uBound);
+                        if (!nativeHashesOptional[credential.hash].verify(lBound, uBound, edKeyHashes)) {
                             throw new Error(`Invalid native script witness. Script hash: ${credential.hash}`);
                         }
                         break;
@@ -411,9 +508,16 @@ export class Emulator {
             }
         }
         // Check collateral inputs
-        for (let i = 0; i < (body.collateral()?.len() || 0); i++) {
-            const input = body.collateral().get(i);
-            const outRef = input.transaction_id().to_hex() + input.index().to_str();
+        const collateral = body.collateral();
+        bucket.push(collateral);
+        for (let i = 0; i < (collateral?.len() || 0); i++) {
+            const input = collateral.get(i);
+            bucket.push(input);
+            const transactionId = input.transaction_id();
+            bucket.push(transactionId);
+            const transactionIndex = input.index();
+            bucket.push(transactionIndex);
+            const outRef = transactionId.to_hex() + transactionIndex.to_str();
             const entry = this.ledger[outRef] || this.mempool[outRef];
             if (!entry || entry.spent) {
                 throw new Error(`Could not read UTxO: ${JSON.stringify({
@@ -428,21 +532,37 @@ export class Emulator {
             checkAndConsumeHash(paymentCredential, null, null);
         }
         // Check required signers
-        for (let i = 0; i < (body.required_signers()?.len() || 0); i++) {
-            const signer = body.required_signers().get(i);
+        const requiredSigners = body.required_signers();
+        bucket.push(requiredSigners);
+        for (let i = 0; i < (requiredSigners?.len() || 0); i++) {
+            const signer = requiredSigners.get(i);
+            bucket.push(signer);
             checkAndConsumeHash({ type: "Key", hash: signer.to_hex() }, null, null);
         }
         // Check mint witnesses
-        for (let index = 0; index < (body.mint()?.keys().len() || 0); index++) {
-            const policyId = body.mint().keys().get(index).to_hex();
-            checkAndConsumeHash({ type: "Script", hash: policyId }, "Mint", index);
+        const mint = body.mint();
+        bucket.push(mint);
+        const mintKeys = mint?.keys();
+        bucket.push(mintKeys);
+        for (let index = 0; index < (mintKeys?.len() || 0); index++) {
+            const policy = mintKeys.get(index);
+            bucket.push(policy);
+            const hash = policy.to_hex();
+            checkAndConsumeHash({ type: "Script", hash }, "Mint", index);
         }
         // Check withdrawal witnesses
         const withdrawalRequests = [];
-        for (let index = 0; index < (body.withdrawals()?.keys().len() || 0); index++) {
-            const rawAddress = body.withdrawals().keys().get(index);
-            const withdrawal = BigInt(body.withdrawals().get(rawAddress).to_str());
-            const rewardAddress = rawAddress.to_address().to_bech32(undefined);
+        const withdrawals = body.withdrawals();
+        const withdrawalKeys = withdrawals?.keys();
+        for (let index = 0; index < (withdrawalKeys?.len() || 0); index++) {
+            const rawAddress = withdrawalKeys.get(index);
+            bucket.push(rawAddress);
+            const cWithdrawal = withdrawals.get(rawAddress);
+            bucket.push(cWithdrawal);
+            const withdrawal = BigInt(cWithdrawal.to_str());
+            const cAddress = rawAddress.to_address();
+            bucket.push(cAddress);
+            const rewardAddress = cAddress.to_bech32(undefined);
             const { stakeCredential } = getAddressDetails(rewardAddress);
             checkAndConsumeHash(stakeCredential, "Reward", index);
             if (this.chain[rewardAddress]?.delegation.rewards !== withdrawal) {
@@ -452,7 +572,9 @@ export class Emulator {
         }
         // Check cert witnesses
         const certRequests = [];
-        for (let index = 0; index < (body.certs()?.len() || 0); index++) {
+        const certs = body.certs();
+        bucket.push(certs);
+        for (let index = 0; index < (certs?.len() || 0); index++) {
             /*
               Checking only:
               1. Stake registration
@@ -461,11 +583,21 @@ export class Emulator {
       
               All other certificate types are not checked and considered valid.
             */
-            const cert = body.certs().get(index);
+            const cert = certs.get(index);
+            bucket.push(cert);
             switch (cert.kind()) {
                 case 0: {
                     const registration = cert.as_stake_registration();
-                    const rewardAddress = C.RewardAddress.new(C.NetworkInfo.testnet().network_id(), registration.stake_credential()).to_address().to_bech32(undefined);
+                    bucket.push(registration);
+                    const networkInfo = C.NetworkInfo.testnet();
+                    bucket.push(networkInfo);
+                    const stakeCredential = registration.stake_credential();
+                    bucket.push(stakeCredential);
+                    const cRewardAddress = C.RewardAddress.new(networkInfo.network_id(), stakeCredential);
+                    bucket.push(cRewardAddress);
+                    const address = cRewardAddress.to_address();
+                    bucket.push(address);
+                    const rewardAddress = address.to_bech32(undefined);
                     if (this.chain[rewardAddress]?.registeredStake) {
                         throw new Error(`Stake key is already registered. Reward address: ${rewardAddress}`);
                     }
@@ -474,7 +606,16 @@ export class Emulator {
                 }
                 case 1: {
                     const deregistration = cert.as_stake_deregistration();
-                    const rewardAddress = C.RewardAddress.new(C.NetworkInfo.testnet().network_id(), deregistration.stake_credential()).to_address().to_bech32(undefined);
+                    bucket.push(deregistration);
+                    const networkInfo = C.NetworkInfo.testnet();
+                    bucket.push(networkInfo);
+                    const cStakeCredential = deregistration.stake_credential();
+                    bucket.push(cStakeCredential);
+                    const cRewardAddress = C.RewardAddress.new(networkInfo.network_id(), cStakeCredential);
+                    bucket.push(cRewardAddress);
+                    const address = cRewardAddress.to_address();
+                    bucket.push(address);
+                    const rewardAddress = address.to_bech32(undefined);
                     const { stakeCredential } = getAddressDetails(rewardAddress);
                     checkAndConsumeHash(stakeCredential, "Cert", index);
                     if (!this.chain[rewardAddress]?.registeredStake) {
@@ -485,8 +626,19 @@ export class Emulator {
                 }
                 case 2: {
                     const delegation = cert.as_stake_delegation();
-                    const rewardAddress = C.RewardAddress.new(C.NetworkInfo.testnet().network_id(), delegation.stake_credential()).to_address().to_bech32(undefined);
-                    const poolId = delegation.pool_keyhash().to_bech32("pool");
+                    bucket.push(delegation);
+                    const networkInfo = C.NetworkInfo.testnet();
+                    bucket.push(networkInfo);
+                    const cStakeCredential = delegation.stake_credential();
+                    bucket.push(cStakeCredential);
+                    const cRewardAddress = C.RewardAddress.new(networkInfo.network_id(), cStakeCredential);
+                    bucket.push(cRewardAddress);
+                    const address = cRewardAddress.to_address();
+                    bucket.push(address);
+                    const rewardAddress = address.to_bech32(undefined);
+                    const poolKeyHash = delegation.pool_keyhash();
+                    bucket.push(poolKeyHash);
+                    const poolId = poolKeyHash.to_bech32("pool");
                     const { stakeCredential } = getAddressDetails(rewardAddress);
                     checkAndConsumeHash(stakeCredential, "Cert", index);
                     if (!this.chain[rewardAddress]?.registeredStake &&
@@ -506,10 +658,20 @@ export class Emulator {
         });
         // Create outputs and consume datum hashes
         const outputs = (() => {
+            const outputs = body.outputs();
+            bucket.push(outputs);
             const collected = [];
-            for (let i = 0; i < body.outputs().len(); i++) {
-                const output = body.outputs().get(i);
-                const unspentOutput = C.TransactionUnspentOutput.new(C.TransactionInput.new(C.TransactionHash.from_hex(txHash), C.BigNum.from_str(i.toString())), output);
+            for (let i = 0; i < outputs.len(); i++) {
+                const output = outputs.get(i);
+                bucket.push(output);
+                const transactionHash = C.TransactionHash.from_hex(txHash);
+                bucket.push(transactionHash);
+                const index = C.BigNum.from_str(i.toString());
+                bucket.push(index);
+                const transactionInput = C.TransactionInput.new(transactionHash, index);
+                bucket.push(transactionInput);
+                const unspentOutput = C.TransactionUnspentOutput.new(transactionInput, output);
+                bucket.push(unspentOutput);
                 const utxo = coreToUtxo(unspentOutput);
                 if (utxo.datumHash)
                     consumedHashes.add(utxo.datumHash);

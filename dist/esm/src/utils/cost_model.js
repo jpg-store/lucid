@@ -1,19 +1,40 @@
 import { C } from "../core/mod.js";
+import { Freeables } from "./freeable.js";
 export function createCostModels(costModels) {
-    const costmdls = C.Costmdls.new();
-    // add plutus v1
-    const costmdlV1 = C.CostModel.new();
-    Object.values(costModels.PlutusV1).forEach((cost, index) => {
-        costmdlV1.set(index, C.Int.new(C.BigNum.from_str(cost.toString())));
-    });
-    costmdls.insert(C.Language.new_plutus_v1(), costmdlV1);
-    // add plutus v2
-    const costmdlV2 = C.CostModel.new_plutus_v2();
-    Object.values(costModels.PlutusV2 || []).forEach((cost, index) => {
-        costmdlV2.set(index, C.Int.new(C.BigNum.from_str(cost.toString())));
-    });
-    costmdls.insert(C.Language.new_plutus_v2(), costmdlV2);
-    return costmdls;
+    const bucket = [];
+    try {
+        const costmdls = C.Costmdls.new();
+        // add plutus v1
+        const costmdlV1 = C.CostModel.new();
+        bucket.push(costmdlV1);
+        Object.values(costModels.PlutusV1).forEach((cost, index) => {
+            const bigNumVal = C.BigNum.from_str(cost.toString());
+            bucket.push(bigNumVal);
+            const intVal = C.Int.new(bigNumVal);
+            bucket.push(intVal);
+            costmdlV1.set(index, intVal);
+        });
+        const plutusV1 = C.Language.new_plutus_v1();
+        bucket.push(plutusV1);
+        costmdls.insert(plutusV1, costmdlV1);
+        // add plutus v2
+        const costmdlV2 = C.CostModel.new_plutus_v2();
+        bucket.push(costmdlV2);
+        Object.values(costModels.PlutusV2 || []).forEach((cost, index) => {
+            const bigNumVal = C.BigNum.from_str(cost.toString());
+            bucket.push(bigNumVal);
+            const intVal = C.Int.new(bigNumVal);
+            bucket.push(intVal);
+            costmdlV2.set(index, intVal);
+        });
+        const plutusV2 = C.Language.new_plutus_v2();
+        bucket.push(plutusV2);
+        costmdls.insert(plutusV2, costmdlV2);
+        return costmdls;
+    }
+    finally {
+        Freeables.free(...bucket);
+    }
 }
 export const PROTOCOL_PARAMETERS_DEFAULT = {
     minFeeA: 44,

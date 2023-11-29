@@ -21,7 +21,7 @@ await dnt.build({
     dependencies: {
       "node-fetch": "^3.2.3",
       "@peculiar/webcrypto": "^1.4.0",
-      "ws": "^8.10.0",
+      ws: "^8.10.0",
     },
     main: "./esm/mod.js",
     type: "module",
@@ -47,26 +47,30 @@ Deno.copyFileSync(
 const importPathPlugin = {
   name: "core-import-path",
   setup(build: any) {
-    build.onResolve({
-      filter:
-        /^\.\/libs\/cardano_multiplatform_lib\/cardano_multiplatform_lib.generated.js$/,
-    }, (args: any) => {
-      return {
-        path:
-          "../esm/src/core/libs/cardano_multiplatform_lib/cardano_multiplatform_lib.generated.js",
-        external: true,
-      };
-    });
-    build.onResolve({
-      filter:
-        /^\.\/libs\/cardano_message_signing\/cardano_message_signing.generated.js$/,
-    }, (args: any) => {
-      return {
-        path:
-          "../esm/src/core/libs/cardano_message_signing/cardano_message_signing.generated.js",
-        external: true,
-      };
-    });
+    build.onResolve(
+      {
+        filter:
+          /^\.\/libs\/cardano_multiplatform_lib\/cardano_multiplatform_lib.generated.js$/,
+      },
+      (args: any) => {
+        return {
+          path: "../esm/src/core/libs/cardano_multiplatform_lib/cardano_multiplatform_lib.generated.js",
+          external: true,
+        };
+      },
+    );
+    build.onResolve(
+      {
+        filter:
+          /^\.\/libs\/cardano_message_signing\/cardano_message_signing.generated.js$/,
+      },
+      (args: any) => {
+        return {
+          path: "../esm/src/core/libs/cardano_message_signing/cardano_message_signing.generated.js",
+          external: true,
+        };
+      },
+    );
   },
 };
 
@@ -76,9 +80,7 @@ await esbuild.build({
   entryPoints: ["./dist/esm/mod.js"],
   outfile: "./dist/web/mod.js",
   minify: true,
-  plugins: [
-    importPathPlugin,
-  ],
+  plugins: [importPathPlugin],
 });
 esbuild.stop();
 
@@ -146,8 +148,12 @@ export { C, M };
 `;
 Deno.writeTextFileSync("dist/esm/src/core/core.js", coreFile);
 
-Deno.mkdirSync("dist/esm/src/core/libs/cardano_message_signing/nodejs");
-Deno.mkdirSync("dist/esm/src/core/libs/cardano_multiplatform_lib/nodejs");
+Deno.mkdirSync("dist/esm/src/core/libs/cardano_message_signing/nodejs", {
+  recursive: true,
+});
+Deno.mkdirSync("dist/esm/src/core/libs/cardano_multiplatform_lib/nodejs", {
+  recursive: true,
+});
 
 Deno.copyFileSync(
   "src/core/libs/cardano_message_signing/nodejs/cardano_message_signing.generated.js",

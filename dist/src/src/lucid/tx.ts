@@ -1,5 +1,5 @@
 import { C } from "../core/mod.js";
-import { Data } from "../mod.js";
+import { Data, PROTOCOL_PARAMETERS_DEFAULT } from "../mod.js";
 import {
   Address,
   Assets,
@@ -23,16 +23,23 @@ import {
   WithdrawalValidator,
 } from "../types/mod.js";
 import {
+  addressFromWithNetworkCheck,
+  attachScript,
+  createPoolRegistration,
+  getDatumFromOutputData,
+  getScriptWitness,
+  getStakeCredential,
+} from "../utils/cml.js";
+import { type FreeableBucket, Freeables } from "../utils/freeable.js";
+import {
   assetsToValue,
   fromHex,
-  networkToId,
   toHex,
-  toScriptRef,
   utxoToCore,
   valueToAssets,
   chunk,
+  createOutput,
 } from "../utils/mod.js";
-import { applyDoubleCborEncoding } from "../utils/utils.js";
 import { Lucid } from "./lucid.js";
 import { defaultConfig } from "./tx_config.js";
 import { TxComplete } from "./tx_complete.js";
@@ -46,22 +53,31 @@ export class Tx {
 
   constructor(lucid: Lucid) {
     this.lucid = lucid;
-    this.txBuilder = C.TransactionBuilder.new(this.lucid.txBuilderConfig);
+    this.txBuilder = C.TransactionBuilder.new(
+      lucid.getTransactionBuilderConfig(),
+    );
     this.tasks = [];
   }
 
   /** Read data from utxos. These utxos are only referenced and not spent. */
   readFrom(utxos: UTxO[]): Tx {
     this.tasks.push(async (that) => {
-      for (const utxo of utxos) {
-        if (utxo.datumHash) {
-          utxo.datum = Data.to(await that.lucid.datumOf(utxo));
-          // Add datum to witness set, so it can be read from validators
-          const plutusData = C.PlutusData.from_bytes(fromHex(utxo.datum!));
-          that.txBuilder.add_plutus_data(plutusData);
+      const bucket: FreeableBucket = [];
+      try {
+        for (const utxo of utxos) {
+          if (utxo.datumHash) {
+            utxo.datum = Data.to(await that.lucid.datumOf(utxo));
+            // Add datum to witness set, so it can be read from validators
+            const plutusData = C.PlutusData.from_bytes(fromHex(utxo.datum!));
+            bucket.push(plutusData);
+            that.txBuilder.add_plutus_data(plutusData);
+          }
+          const coreUtxo = utxoToCore(utxo);
+          bucket.push(coreUtxo);
+          that.txBuilder.add_reference_input(coreUtxo);
         }
-        const coreUtxo = utxoToCore(utxo);
-        that.txBuilder.add_reference_input(coreUtxo);
+      } finally {
+        Freeables.free(...bucket);
       }
     });
     return this;
@@ -81,24 +97,26 @@ export class Tx {
    */
   collectFrom(utxos: UTxO[], redeemer?: Redeemer): Tx {
     this.tasks.push(async (that) => {
-      for (const utxo of utxos) {
-        if (utxo.datumHash && !utxo.datum) {
-          utxo.datum = Data.to(await that.lucid.datumOf(utxo));
-        }
-        const coreUtxo = utxoToCore(utxo);
-        that.txBuilder.add_input(
-          coreUtxo,
-          (redeemer as undefined) &&
-            C.ScriptWitness.new_plutus_witness(
-              C.PlutusWitness.new(
-                C.PlutusData.from_bytes(fromHex(redeemer!)),
-                utxo.datumHash && utxo.datum
-                  ? C.PlutusData.from_bytes(fromHex(utxo.datum!))
-                  : undefined,
-                undefined
+      const bucket: FreeableBucket = [];
+      try {
+        for (const utxo of utxos) {
+          if (utxo.datumHash && !utxo.datum) {
+            utxo.datum = Data.to(await that.lucid.datumOf(utxo));
+          }
+          const coreUtxo = utxoToCore(utxo);
+          bucket.push(coreUtxo);
+          // We don't free Options as the ownership is passed to the txBuilder
+          const scriptWitness = redeemer
+            ? getScriptWitness(
+                redeemer,
+                utxo.datumHash && utxo.datum ? utxo.datum : undefined,
               )
-            )
-        );
+            : undefined;
+
+          that.txBuilder.add_input(coreUtxo, scriptWitness);
+        }
+      } finally {
+        Freeables.free(...bucket);
       }
     });
     return this;
@@ -111,34 +129,32 @@ export class Tx {
    */
   mintAssets(assets: Assets, redeemer?: Redeemer): Tx {
     this.tasks.push((that) => {
-      const units = Object.keys(assets);
-      const policyId = units[0].slice(0, 56);
-      const mintAssets = C.MintAssets.new();
-      units.forEach((unit) => {
-        if (unit.slice(0, 56) !== policyId) {
-          throw new Error(
-            "Only one policy id allowed. You can chain multiple mintAssets functions together if you need to mint assets with different policy ids."
-          );
-        }
-        mintAssets.insert(
-          C.AssetName.new(fromHex(unit.slice(56))),
-          C.Int.from_str(assets[unit].toString())
-        );
-      });
-      const scriptHash = C.ScriptHash.from_bytes(fromHex(policyId));
-      that.txBuilder.add_mint(
-        scriptHash,
-        mintAssets,
-        redeemer
-          ? C.ScriptWitness.new_plutus_witness(
-              C.PlutusWitness.new(
-                C.PlutusData.from_bytes(fromHex(redeemer!)),
-                undefined,
-                undefined
-              )
-            )
-          : undefined
-      );
+      const bucket: FreeableBucket = [];
+      try {
+        const units = Object.keys(assets);
+        const policyId = units[0].slice(0, 56);
+        const mintAssets = C.MintAssets.new();
+        bucket.push(mintAssets);
+        units.forEach((unit) => {
+          if (unit.slice(0, 56) !== policyId) {
+            throw new Error(
+              "Only one policy id allowed. You can chain multiple mintAssets functions together if you need to mint assets with different policy ids.",
+            );
+          }
+          const assetName = C.AssetName.new(fromHex(unit.slice(56)));
+          const int = C.Int.from_str(assets[unit].toString());
+          // Int is being passed by value so we don't need to free it
+          bucket.push(assetName);
+          mintAssets.insert(assetName, int);
+        });
+        const scriptHash = C.ScriptHash.from_bytes(fromHex(policyId));
+        // We don't free Options as the ownership is passed to the txBuilder
+        const scriptWitness = redeemer ? getScriptWitness(redeemer) : undefined;
+        bucket.push(scriptHash);
+        that.txBuilder.add_mint(scriptHash, mintAssets, scriptWitness);
+      } finally {
+        Freeables.free(...bucket);
+      }
     });
     return this;
   }
@@ -146,17 +162,16 @@ export class Tx {
   /** Pay to a public key or native script address. */
   payToAddress(address: Address, assets: Assets): Tx {
     this.tasks.push((that) => {
-      let output = C.TransactionOutput.new(
-        addressFromWithNetworkCheck(address, that.lucid),
-        assetsToValue(assets)
-      );
+      const addr = addressFromWithNetworkCheck(address, that.lucid);
+      const value = assetsToValue(assets);
+
+      const output = C.TransactionOutput.new(addr, value);
       const minAda = that.lucid.utils.getMinAdaForOutput(output);
       assets.lovelace = assets.lovelace > minAda ? assets.lovelace : minAda;
-      output = C.TransactionOutput.new(
-        addressFromWithNetworkCheck(address, that.lucid),
-        assetsToValue(assets)
-      );
-      that.txBuilder.add_output(output);
+      const valueWithMinAda = assetsToValue(assets);
+      const outputWithMinAda = C.TransactionOutput.new(addr, valueWithMinAda);
+      that.txBuilder.add_output(outputWithMinAda);
+      Freeables.free(output, addr, value, valueWithMinAda, outputWithMinAda);
     });
     return this;
   }
@@ -165,57 +180,51 @@ export class Tx {
   payToAddressWithData(
     address: Address,
     outputData: Datum | OutputData,
-    assets: Assets
+    assets: Assets,
   ): Tx {
     this.tasks.push((that) => {
-      if (typeof outputData === "string") {
-        outputData = { asHash: outputData };
-      }
-
-      if (
-        [outputData.hash, outputData.asHash, outputData.inline].filter((b) => b)
-          .length > 1
-      ) {
-        throw new Error(
-          "Not allowed to set hash, asHash and inline at the same time."
-        );
-      }
-      const createOutput = (_assets: Assets, _outputData: OutputData) => {
-        const output = C.TransactionOutput.new(
-          addressFromWithNetworkCheck(address, that.lucid),
-          assetsToValue(_assets)
-        );
-
-        if (_outputData.hash) {
-          output.set_datum(
-            C.Datum.new_data_hash(C.DataHash.from_hex(_outputData.hash))
-          );
-        } else if (_outputData.asHash) {
-          const plutusData = C.PlutusData.from_bytes(
-            fromHex(_outputData.asHash)
-          );
-          output.set_datum(
-            C.Datum.new_data_hash(C.hash_plutus_data(plutusData))
-          );
-          that.txBuilder.add_plutus_data(plutusData);
-        } else if (_outputData.inline) {
-          const plutusData = C.PlutusData.from_bytes(
-            fromHex(_outputData.inline)
-          );
-          output.set_datum(C.Datum.new_data(C.Data.new(plutusData)));
+      const bucket: FreeableBucket = [];
+      try {
+        if (typeof outputData === "string") {
+          outputData = { asHash: outputData };
         }
 
-        const script = _outputData.scriptRef;
-        if (script) {
-          output.set_script_ref(toScriptRef(script));
+        if (
+          [outputData.hash, outputData.asHash, outputData.inline].filter(
+            (b) => b,
+          ).length > 1
+        ) {
+          throw new Error(
+            "Not allowed to set hash, asHash and inline at the same time.",
+          );
         }
-        return output;
-      };
-      let output = createOutput(assets, outputData);
-      const minAda = this.lucid.utils.getMinAdaForOutput(output);
-      assets.lovelace = assets.lovelace > minAda ? assets.lovelace : minAda;
-      output = createOutput(assets, outputData);
-      that.txBuilder.add_output(output);
+
+        const output = createOutput({
+          bucket,
+          txBuilder: that.txBuilder,
+          lucid: that.lucid,
+          address,
+          outputData,
+          assets,
+        });
+        const minAda = this.lucid.utils.getMinAdaForOutput(output);
+        const assetsWithMinAda = { ...assets };
+        assetsWithMinAda.lovelace =
+          assets.lovelace > minAda ? assets.lovelace : minAda;
+        const outputWithMinAda = createOutput({
+          bucket,
+          txBuilder: that.txBuilder,
+          lucid: that.lucid,
+          address,
+          outputData,
+          assets: assetsWithMinAda,
+        });
+        bucket.push(output, outputWithMinAda);
+
+        that.txBuilder.add_output(outputWithMinAda);
+      } finally {
+        Freeables.free(...bucket);
+      }
     });
     return this;
   }
@@ -224,7 +233,7 @@ export class Tx {
   payToContract(
     address: Address,
     outputData: Datum | OutputData,
-    assets: Assets
+    assets: Assets,
   ): Tx {
     if (typeof outputData === "string") {
       outputData = { asHash: outputData };
@@ -232,7 +241,7 @@ export class Tx {
 
     if (!(outputData.hash || outputData.asHash || outputData.inline)) {
       throw new Error(
-        "No datum set. Script output becomes unspendable without datum."
+        "No datum set. Script output becomes unspendable without datum.",
       );
     }
     return this.payToAddressWithData(address, outputData, assets);
@@ -242,7 +251,7 @@ export class Tx {
   delegateTo(
     rewardAddress: RewardAddress,
     poolId: PoolId,
-    redeemer?: Redeemer
+    redeemer?: Redeemer,
   ): Tx {
     this.tasks.push((that) => {
       const addressDetails = that.lucid.utils.getAddressDetails(rewardAddress);
@@ -250,36 +259,18 @@ export class Tx {
       if (addressDetails.type !== "Reward" || !addressDetails.stakeCredential) {
         throw new Error("Not a reward address provided.");
       }
-      const credential =
-        addressDetails.stakeCredential.type === "Key"
-          ? C.StakeCredential.from_keyhash(
-              C.Ed25519KeyHash.from_bytes(
-                fromHex(addressDetails.stakeCredential.hash)
-              )
-            )
-          : C.StakeCredential.from_scripthash(
-              C.ScriptHash.from_bytes(
-                fromHex(addressDetails.stakeCredential.hash)
-              )
-            );
-
-      that.txBuilder.add_certificate(
-        C.Certificate.new_stake_delegation(
-          C.StakeDelegation.new(
-            credential,
-            C.Ed25519KeyHash.from_bech32(poolId)
-          )
-        ),
-        redeemer
-          ? C.ScriptWitness.new_plutus_witness(
-              C.PlutusWitness.new(
-                C.PlutusData.from_bytes(fromHex(redeemer!)),
-                undefined,
-                undefined
-              )
-            )
-          : undefined
+      const credential = getStakeCredential(
+        addressDetails.stakeCredential.hash,
+        addressDetails.stakeCredential.type,
       );
+
+      const keyHash = C.Ed25519KeyHash.from_bech32(poolId);
+      const delegation = C.StakeDelegation.new(credential, keyHash);
+      // We don't free Options as the ownership is passed to the txBuilder
+      const scriptWitness = redeemer ? getScriptWitness(redeemer) : undefined;
+      const certificate = C.Certificate.new_stake_delegation(delegation);
+      that.txBuilder.add_certificate(certificate, scriptWitness);
+      Freeables.free(keyHash, delegation, credential, certificate);
     });
     return this;
   }
@@ -292,25 +283,16 @@ export class Tx {
       if (addressDetails.type !== "Reward" || !addressDetails.stakeCredential) {
         throw new Error("Not a reward address provided.");
       }
-      const credential =
-        addressDetails.stakeCredential.type === "Key"
-          ? C.StakeCredential.from_keyhash(
-              C.Ed25519KeyHash.from_bytes(
-                fromHex(addressDetails.stakeCredential.hash)
-              )
-            )
-          : C.StakeCredential.from_scripthash(
-              C.ScriptHash.from_bytes(
-                fromHex(addressDetails.stakeCredential.hash)
-              )
-            );
-
-      that.txBuilder.add_certificate(
-        C.Certificate.new_stake_registration(
-          C.StakeRegistration.new(credential)
-        ),
-        undefined
+      const credential = getStakeCredential(
+        addressDetails.stakeCredential.hash,
+        addressDetails.stakeCredential.type,
       );
+      const stakeRegistration = C.StakeRegistration.new(credential);
+      const certificate =
+        C.Certificate.new_stake_registration(stakeRegistration);
+
+      that.txBuilder.add_certificate(certificate, undefined);
+      Freeables.free(credential, stakeRegistration, certificate);
     });
     return this;
   }
@@ -323,33 +305,18 @@ export class Tx {
       if (addressDetails.type !== "Reward" || !addressDetails.stakeCredential) {
         throw new Error("Not a reward address provided.");
       }
-      const credential =
-        addressDetails.stakeCredential.type === "Key"
-          ? C.StakeCredential.from_keyhash(
-              C.Ed25519KeyHash.from_bytes(
-                fromHex(addressDetails.stakeCredential.hash)
-              )
-            )
-          : C.StakeCredential.from_scripthash(
-              C.ScriptHash.from_bytes(
-                fromHex(addressDetails.stakeCredential.hash)
-              )
-            );
-
-      that.txBuilder.add_certificate(
-        C.Certificate.new_stake_deregistration(
-          C.StakeDeregistration.new(credential)
-        ),
-        redeemer
-          ? C.ScriptWitness.new_plutus_witness(
-              C.PlutusWitness.new(
-                C.PlutusData.from_bytes(fromHex(redeemer!)),
-                undefined,
-                undefined
-              )
-            )
-          : undefined
+      const credential = getStakeCredential(
+        addressDetails.stakeCredential.hash,
+        addressDetails.stakeCredential.type,
       );
+      const stakeDeregistration = C.StakeDeregistration.new(credential);
+      const certificate =
+        C.Certificate.new_stake_deregistration(stakeDeregistration);
+      // We don't free Options as the ownership is passed to the txBuilder
+      const scriptWitness = redeemer ? getScriptWitness(redeemer) : undefined;
+
+      that.txBuilder.add_certificate(certificate, scriptWitness);
+      Freeables.free(credential, stakeDeregistration, certificate);
     });
     return this;
   }
@@ -359,12 +326,13 @@ export class Tx {
     this.tasks.push(async (that) => {
       const poolRegistration = await createPoolRegistration(
         poolParams,
-        that.lucid
+        that.lucid,
       );
 
       const certificate = C.Certificate.new_pool_registration(poolRegistration);
 
       that.txBuilder.add_certificate(certificate, undefined);
+      Freeables.free(certificate, poolRegistration);
     });
     return this;
   }
@@ -374,13 +342,14 @@ export class Tx {
     this.tasks.push(async (that) => {
       const poolRegistration = await createPoolRegistration(
         poolParams,
-        that.lucid
+        that.lucid,
       );
 
       // This flag makes sure a pool deposit is not required
       poolRegistration.set_is_update(true);
 
       const certificate = C.Certificate.new_pool_registration(poolRegistration);
+      Freeables.free(poolRegistration, certificate);
 
       that.txBuilder.add_certificate(certificate, undefined);
     });
@@ -392,10 +361,11 @@ export class Tx {
    */
   retirePool(poolId: PoolId, epoch: number): Tx {
     this.tasks.push((that) => {
-      const certificate = C.Certificate.new_pool_retirement(
-        C.PoolRetirement.new(C.Ed25519KeyHash.from_bech32(poolId), epoch)
-      );
+      const keyHash = C.Ed25519KeyHash.from_bech32(poolId);
+      const poolRetirement = C.PoolRetirement.new(keyHash, epoch);
+      const certificate = C.Certificate.new_pool_retirement(poolRetirement);
       that.txBuilder.add_certificate(certificate, undefined);
+      Freeables.free(keyHash, poolRetirement, certificate);
     });
     return this;
   }
@@ -403,24 +373,15 @@ export class Tx {
   withdraw(
     rewardAddress: RewardAddress,
     amount: Lovelace,
-    redeemer?: Redeemer
+    redeemer?: Redeemer,
   ): Tx {
     this.tasks.push((that) => {
-      that.txBuilder.add_withdrawal(
-        C.RewardAddress.from_address(
-          addressFromWithNetworkCheck(rewardAddress, that.lucid)
-        )!,
-        C.BigNum.from_str(amount.toString()),
-        redeemer
-          ? C.ScriptWitness.new_plutus_witness(
-              C.PlutusWitness.new(
-                C.PlutusData.from_bytes(fromHex(redeemer!)),
-                undefined,
-                undefined
-              )
-            )
-          : undefined
-      );
+      const addr = addressFromWithNetworkCheck(rewardAddress, that.lucid);
+      const rewardAddr = C.RewardAddress.from_address(addr)!;
+      const amountBigNum = C.BigNum.from_str(amount.toString());
+      const scriptWitness = redeemer ? getScriptWitness(redeemer) : undefined;
+      that.txBuilder.add_withdrawal(rewardAddr, amountBigNum, scriptWitness);
+      Freeables.free(addr, rewardAddr, amountBigNum, scriptWitness);
     });
     return this;
   }
@@ -451,9 +412,9 @@ export class Tx {
   /** Add a payment or stake key hash as a required signer of the transaction. */
   addSignerKey(keyHash: PaymentKeyHash | StakeKeyHash): Tx {
     this.tasks.push((that) => {
-      that.txBuilder.add_required_signer(
-        C.Ed25519KeyHash.from_bytes(fromHex(keyHash))
-      );
+      const key = C.Ed25519KeyHash.from_bytes(fromHex(keyHash));
+      that.txBuilder.add_required_signer(key);
+      Freeables.free(key);
     });
     return this;
   }
@@ -461,9 +422,9 @@ export class Tx {
   validFrom(unixTime: UnixTime): Tx {
     this.tasks.push((that) => {
       const slot = that.lucid.utils.unixTimeToSlot(unixTime);
-      that.txBuilder.set_validity_start_interval(
-        C.BigNum.from_str(slot.toString())
-      );
+      const slotNum = C.BigNum.from_str(slot.toString());
+      that.txBuilder.set_validity_start_interval(slotNum);
+      Freeables.free(slotNum);
     });
     return this;
   }
@@ -471,17 +432,18 @@ export class Tx {
   validTo(unixTime: UnixTime): Tx {
     this.tasks.push((that) => {
       const slot = that.lucid.utils.unixTimeToSlot(unixTime);
-      that.txBuilder.set_ttl(C.BigNum.from_str(slot.toString()));
+      const slotNum = C.BigNum.from_str(slot.toString());
+      that.txBuilder.set_ttl(slotNum);
+      Freeables.free(slotNum);
     });
     return this;
   }
 
   attachMetadata(label: Label, metadata: Json): Tx {
     this.tasks.push((that) => {
-      that.txBuilder.add_json_metadatum(
-        C.BigNum.from_str(label.toString()),
-        JSON.stringify(metadata)
-      );
+      const labelNum = C.BigNum.from_str(label.toString());
+      that.txBuilder.add_json_metadatum(labelNum, JSON.stringify(metadata));
+      Freeables.free(labelNum);
     });
     return this;
   }
@@ -489,11 +451,13 @@ export class Tx {
   /** Converts strings to bytes if prefixed with **'0x'**. */
   attachMetadataWithConversion(label: Label, metadata: Json): Tx {
     this.tasks.push((that) => {
+      const labelNum = C.BigNum.from_str(label.toString());
       that.txBuilder.add_json_metadatum_with_schema(
-        C.BigNum.from_str(label.toString()),
+        labelNum,
         JSON.stringify(metadata),
-        C.MetadataJsonSchema.BasicConversions
+        C.MetadataJsonSchema.BasicConversions,
       );
+      Freeables.free(labelNum);
     });
     return this;
   }
@@ -501,9 +465,11 @@ export class Tx {
   /** Explicitely set the network id in the transaction body. */
   addNetworkId(id: number): Tx {
     this.tasks.push((that) => {
-      that.txBuilder.set_network_id(
-        C.NetworkId.from_bytes(fromHex(id.toString(16).padStart(2, "0")))
+      const networkId = C.NetworkId.from_bytes(
+        fromHex(id.toString(16).padStart(2, "0")),
       );
+      that.txBuilder.set_network_id(networkId);
+      Freeables.free(networkId);
     });
     return this;
   }
@@ -554,93 +520,85 @@ export class Tx {
     return this;
   }
 
+  free() {
+    this.txBuilder.free();
+  }
+
+  /** Completes the transaction. This might fail, you should free the txBuilder when you are done with it. */
   async complete(options?: {
     change?: { address?: Address; outputData?: OutputData };
     coinSelection?: boolean;
     nativeUplc?: boolean;
   }): Promise<TxComplete> {
+    const bucket: FreeableBucket = [];
     const { enableChangeSplitting } = this.configuration;
-    if (
-      [
-        options?.change?.outputData?.hash,
-        options?.change?.outputData?.asHash,
-        options?.change?.outputData?.inline,
-      ].filter((b) => b).length > 1
-    ) {
-      throw new Error(
-        "Not allowed to set hash, asHash and inline at the same time."
+    try {
+      if (
+        [
+          options?.change?.outputData?.hash,
+          options?.change?.outputData?.asHash,
+          options?.change?.outputData?.inline,
+        ].filter((b) => b).length > 1
+      ) {
+        throw new Error(
+          "Not allowed to set hash, asHash and inline at the same time.",
+        );
+      }
+
+      let task = this.tasks.shift();
+      while (task) {
+        await task(this);
+        task = this.tasks.shift();
+      }
+
+      // We don't free `utxos` as it is passed as an Option to the txBuilder and the ownership is passed when passing an Option
+      const utxos = await this.lucid.wallet.getUtxosCore();
+
+      const collateral = this.lucid.wallet.getCollateralCore();
+
+      // We don't free `changeAddress` as it is passed as an Option to the txBuilder and the ownership is passed when passing an Option
+      const changeAddress: C.Address = addressFromWithNetworkCheck(
+        options?.change?.address || (await this.lucid.wallet.address()),
+        this.lucid,
       );
-    }
 
-    let task = this.tasks.shift();
-    while (task) {
-      await task(this);
-      task = this.tasks.shift();
-    }
+      if (options?.coinSelection || options?.coinSelection === undefined) {
+        this.txBuilder.add_inputs_from(
+          utxos,
+          changeAddress,
+          Uint32Array.from([
+            200, // weight ideal > 100 inputs
+            1000, // weight ideal < 100 inputs
+            1500, // weight assets if plutus
+            800, // weight assets if not plutus
+            800, // weight distance if not plutus
+            5000, // weight utxos
+          ]),
+        );
+      }
 
-    const utxos = await this.lucid.wallet.getUtxosCore();
-    const collateral = await this.lucid.wallet.getCollateralCore();
-
-    const changeAddress: C.Address = addressFromWithNetworkCheck(
-      options?.change?.address || (await this.lucid.wallet.address()),
-      this.lucid
-    );
-
-    if (options?.coinSelection || options?.coinSelection === undefined) {
-      this.txBuilder.add_inputs_from(
-        utxos,
-        changeAddress,
-        Uint32Array.from([
-          200, // weight ideal > 100 inputs
-          1000, // weight ideal < 100 inputs
-          1500, // weight assets if plutus
-          800, // weight assets if not plutus
-          800, // weight distance if not plutus
-          5000, // weight utxos
-        ])
+      const { datum, plutusData } = getDatumFromOutputData(
+        options?.change?.outputData,
       );
-    }
+      if (plutusData) {
+        this.txBuilder.add_plutus_data(plutusData);
+      }
+      bucket.push(datum, plutusData);
+      if (enableChangeSplitting) {
+        await this.splitChange();
+      }
+      this.txBuilder.balance(changeAddress, datum);
 
-    if (enableChangeSplitting) {
-      await this.splitChange();
-    }
-
-    this.txBuilder.balance(
-      changeAddress,
-      (() => {
-        if (options?.change?.outputData?.hash) {
-          return C.Datum.new_data_hash(
-            C.DataHash.from_hex(options.change.outputData.hash)
-          );
-        } else if (options?.change?.outputData?.asHash) {
-          this.txBuilder.add_plutus_data(
-            C.PlutusData.from_bytes(fromHex(options.change.outputData.asHash))
-          );
-          return C.Datum.new_data_hash(
-            C.hash_plutus_data(
-              C.PlutusData.from_bytes(fromHex(options.change.outputData.asHash))
-            )
-          );
-        } else if (options?.change?.outputData?.inline) {
-          return C.Datum.new_data(
-            C.Data.new(
-              C.PlutusData.from_bytes(fromHex(options.change.outputData.inline))
-            )
-          );
-        } else {
-          return undefined;
-        }
-      })()
-    );
-
-    return new TxComplete(
-      this.lucid,
-      await this.txBuilder.construct(
+      const tx = await this.txBuilder.construct(
         collateral || utxos,
         changeAddress,
-        options?.nativeUplc === undefined ? true : options?.nativeUplc
-      )
-    );
+        options?.nativeUplc === undefined ? true : options?.nativeUplc,
+      );
+
+      return new TxComplete(this.lucid, tx);
+    } finally {
+      Freeables.free(...bucket);
+    }
   }
 
   /** Return the current transaction body in Hex encoded Cbor. */
@@ -670,16 +628,20 @@ export class Tx {
    * This is the advanced UTxO management algorithm used by Eternl
    */
   private async splitChange() {
-    const { coinsPerUtxoByte } = await this.lucid.protocolParameters;
+    const bucket: FreeableBucket = [];
+    const { coinsPerUtxoByte } =
+      this.lucid.protocolParameters || PROTOCOL_PARAMETERS_DEFAULT;
     const { changeNativeAssetChunkSize, changeMinUtxo } = this.configuration;
 
-    const change = this.txBuilder
-      .get_explicit_input()
-      .checked_sub(this.txBuilder.get_explicit_output());
+    const txInputs = this.txBuilder.get_explicit_input();
+    const txOutputs = this.txBuilder.get_explicit_output();
+    bucket.push(txInputs, txOutputs);
+    const change = txInputs.checked_sub(txOutputs);
 
     let changeAda = change.coin();
 
     let changeAssets = valueToAssets(change);
+    bucket.push(changeAda);
     const changeAssetsArray = Object.keys(changeAssets)
       .filter((v) => v !== "lovelace")
       // Sort canonically so we group policy IDs together
@@ -687,42 +649,59 @@ export class Tx {
 
     changeAssets = changeAssetsArray.reduce(
       (res, key) => Object.assign(res, { [key]: changeAssets[key] }),
-      {}
+      {},
     );
 
     const numOutputsWithNativeAssets = Math.ceil(
-      changeAssetsArray.length / changeNativeAssetChunkSize
+      changeAssetsArray.length / changeNativeAssetChunkSize,
     );
 
     let longestAddress = C.Address.from_bech32(
-      await this.lucid.wallet.address()
+      await this.lucid.wallet.address(),
     );
+    bucket.push(longestAddress);
 
     const outputs = this.txBuilder.outputs();
+    bucket.push(outputs);
     for (let i = 0; i < outputs.len(); i++) {
       const output = outputs.get(i);
+      bucket.push(output);
+      const outputAddress = output.address();
       if (
         !longestAddress ||
-        output.address().to_bech32(undefined).length >
+        outputAddress.to_bech32(undefined).length >
           longestAddress.to_bech32(undefined).length
       ) {
         longestAddress = output.address();
       }
     }
 
-    const minAdaPerOutput = C.min_ada_required(
-      C.TransactionOutput.new(longestAddress, assetsToValue(changeAssets)),
-      C.BigNum.from_str(coinsPerUtxoByte.toString())
+    const txOutputValue = assetsToValue(changeAssets);
+    const transactionOutput = C.TransactionOutput.new(
+      longestAddress,
+      txOutputValue,
+    );
+    const coinUtxoByte = C.BigNum.from_str(coinsPerUtxoByte.toString());
+    const minAdaPerOutput = C.min_ada_required(transactionOutput, coinUtxoByte);
+    bucket.push(
+      txOutputValue,
+      transactionOutput,
+      coinUtxoByte,
+      minAdaPerOutput,
     );
 
     // Do we have enough ADA in the change to split and still
     // statisfy minADA requirements?
-    const shouldSplitChange =
-      minAdaPerOutput
-        .checked_mul(C.BigNum.from_str(numOutputsWithNativeAssets.toString()))
-        .compare(changeAda) < 0;
+    const numOutputsWithAssets = C.BigNum.from_str(
+      numOutputsWithNativeAssets.toString(),
+    );
+    const changeAmount = minAdaPerOutput.checked_mul(numOutputsWithAssets);
+    bucket.push(numOutputsWithAssets, changeAmount);
+    const shouldSplitChange = changeAmount.compare(changeAda) < 0;
 
-    if (change.multiasset() && shouldSplitChange) {
+    const changeMultiAsset = change.multiasset();
+    bucket.push(changeMultiAsset);
+    if (changeMultiAsset && shouldSplitChange) {
       const assetChunks = chunk(changeAssetsArray, 20);
 
       const totalChunks = assetChunks.length;
@@ -734,169 +713,52 @@ export class Tx {
         const val = assetsToValue(
           piece.reduce(
             (res, key) => Object.assign(res, { [key]: changeAssets[key] }),
-            {}
-          )
-        );
-        const minAda = C.min_ada_required(
-          C.TransactionOutput.new(
-            C.Address.from_bech32(await this.lucid.wallet.address()),
-            val
+            {},
           ),
-          C.BigNum.from_str(coinsPerUtxoByte.toString())
         );
-
-        const coin = minAda;
-
-        val.set_coin(coin);
-        changeAda = changeAda.checked_sub(coin);
-
-        this.txBuilder.add_output(
-          C.TransactionOutput.new(
-            C.Address.from_bech32(await this.lucid.wallet.address()),
-            val
-          )
+        bucket.push(val);
+        const changeAddress = C.Address.from_bech32(
+          await this.lucid.wallet.address(),
         );
+        const minAdaTxOutput = C.TransactionOutput.new(changeAddress, val);
+
+        const coinUtxoByte = C.BigNum.from_str(coinsPerUtxoByte.toString());
+        const minAda = C.min_ada_required(minAdaTxOutput, coinUtxoByte);
+
+        val.set_coin(minAda);
+        changeAda = changeAda.checked_sub(minAda);
+        const txOutputWithMinAda = C.TransactionOutput.new(changeAddress, val);
+        bucket.push(changeAda, minAdaTxOutput);
+        this.txBuilder.add_output(txOutputWithMinAda);
       }
     }
 
+    const two = C.BigNum.from_str("2");
+    const changeMinUtxoBigNum = C.BigNum.from_str(changeMinUtxo);
+    let split = changeAda.checked_div(two);
+    bucket.push(two, changeMinUtxoBigNum, split);
     while (
       // If the half is more than the minimum, we can split it
-      changeAda
-        .checked_div(C.BigNum.from_str("2"))
-        .compare(C.BigNum.from_str(changeMinUtxo)) >= 0
+      split.compare(changeMinUtxoBigNum) >= 0
     ) {
-      const half = changeAda.checked_div(C.BigNum.from_str("2"));
+      const half = changeAda.checked_div(two);
       changeAda = changeAda.checked_sub(half);
-      this.txBuilder.add_output(
-        C.TransactionOutput.new(
-          C.Address.from_bech32(await this.lucid.wallet.address()),
-          C.Value.new(half)
-        )
+      split = changeAda.checked_div(two);
+
+      const changeAddress = C.Address.from_bech32(
+        await this.lucid.wallet.address(),
       );
+      const halfValue = C.Value.new(half);
+      const changeOutput = C.TransactionOutput.new(changeAddress, halfValue);
+      bucket.push(
+        half,
+        changeAda,
+        split,
+        changeAddress,
+        halfValue,
+        changeOutput,
+      );
+      this.txBuilder.add_output(changeOutput);
     }
   }
-}
-
-function attachScript(
-  tx: Tx,
-  {
-    type,
-    script,
-  }:
-    | SpendingValidator
-    | MintingPolicy
-    | CertificateValidator
-    | WithdrawalValidator
-) {
-  if (type === "Native") {
-    return tx.txBuilder.add_native_script(
-      C.NativeScript.from_bytes(fromHex(script))
-    );
-  } else if (type === "PlutusV1") {
-    return tx.txBuilder.add_plutus_script(
-      C.PlutusScript.from_bytes(fromHex(applyDoubleCborEncoding(script)))
-    );
-  } else if (type === "PlutusV2") {
-    return tx.txBuilder.add_plutus_v2_script(
-      C.PlutusScript.from_bytes(fromHex(applyDoubleCborEncoding(script)))
-    );
-  }
-  throw new Error("No variant matched.");
-}
-
-async function createPoolRegistration(
-  poolParams: PoolParams,
-  lucid: Lucid
-): Promise<C.PoolRegistration> {
-  const poolOwners = C.Ed25519KeyHashes.new();
-  poolParams.owners.forEach((owner) => {
-    const { stakeCredential } = lucid.utils.getAddressDetails(owner);
-    if (stakeCredential?.type === "Key") {
-      poolOwners.add(C.Ed25519KeyHash.from_hex(stakeCredential.hash));
-    } else throw new Error("Only key hashes allowed for pool owners.");
-  });
-
-  const metadata = poolParams.metadataUrl
-    ? await fetch(poolParams.metadataUrl).then((res) => res.arrayBuffer())
-    : null;
-
-  const metadataHash = metadata
-    ? C.PoolMetadataHash.from_bytes(C.hash_blake2b256(new Uint8Array(metadata)))
-    : null;
-
-  const relays = C.Relays.new();
-  poolParams.relays.forEach((relay) => {
-    switch (relay.type) {
-      case "SingleHostIp": {
-        const ipV4 = relay.ipV4
-          ? C.Ipv4.new(
-              new Uint8Array(relay.ipV4.split(".").map((b) => parseInt(b)))
-            )
-          : undefined;
-        const ipV6 = relay.ipV6
-          ? C.Ipv6.new(fromHex(relay.ipV6.replaceAll(":", "")))
-          : undefined;
-        relays.add(
-          C.Relay.new_single_host_addr(
-            C.SingleHostAddr.new(relay.port, ipV4, ipV6)
-          )
-        );
-        break;
-      }
-      case "SingleHostDomainName": {
-        relays.add(
-          C.Relay.new_single_host_name(
-            C.SingleHostName.new(
-              relay.port,
-              C.DNSRecordAorAAAA.new(relay.domainName!)
-            )
-          )
-        );
-        break;
-      }
-      case "MultiHost": {
-        relays.add(
-          C.Relay.new_multi_host_name(
-            C.MultiHostName.new(C.DNSRecordSRV.new(relay.domainName!))
-          )
-        );
-        break;
-      }
-    }
-  });
-
-  return C.PoolRegistration.new(
-    C.PoolParams.new(
-      C.Ed25519KeyHash.from_bech32(poolParams.poolId),
-      C.VRFKeyHash.from_hex(poolParams.vrfKeyHash),
-      C.BigNum.from_str(poolParams.pledge.toString()),
-      C.BigNum.from_str(poolParams.cost.toString()),
-      C.UnitInterval.from_float(poolParams.margin),
-      C.RewardAddress.from_address(
-        addressFromWithNetworkCheck(poolParams.rewardAddress, lucid)
-      )!,
-      poolOwners,
-      relays,
-      metadataHash
-        ? C.PoolMetadata.new(C.Url.new(poolParams.metadataUrl!), metadataHash)
-        : undefined
-    )
-  );
-}
-
-function addressFromWithNetworkCheck(
-  address: Address | RewardAddress,
-  lucid: Lucid
-): C.Address {
-  const { type, networkId } = lucid.utils.getAddressDetails(address);
-
-  const actualNetworkId = networkToId(lucid.network);
-  if (networkId !== actualNetworkId) {
-    throw new Error(
-      `Invalid address: Expected address with network id ${actualNetworkId}, but got ${networkId}`,
-    );
-  }
-  return type === "Byron"
-    ? C.ByronAddress.from_base58(address).to_address()
-    : C.Address.from_bech32(address);
 }

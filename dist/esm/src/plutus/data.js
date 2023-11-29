@@ -1,6 +1,7 @@
 import { Type, } from "../../deps/deno.land/x/typebox@0.25.13/src/typebox.js";
 import { C } from "../core/mod.js";
 import { fromHex, fromText, toHex } from "../utils/utils.js";
+import { Freeables } from "../utils/freeable.js";
 export class Constr {
     constructor(index, fields) {
         Object.defineProperty(this, "index", {
@@ -91,28 +92,30 @@ export const Data = {
     Object: function (properties, options) {
         const object = Type.Object(properties);
         replaceProperties(object, {
-            anyOf: [{
+            anyOf: [
+                {
                     dataType: "constructor",
                     index: 0,
                     fields: Object.entries(properties).map(([title, p]) => ({
                         ...p,
                         title,
                     })),
-                }],
+                },
+            ],
         });
-        object.anyOf[0].hasConstr = typeof options?.hasConstr === "undefined" ||
-            options.hasConstr;
+        object.anyOf[0].hasConstr =
+            typeof options?.hasConstr === "undefined" || options.hasConstr;
         return object;
     },
     Enum: function (items) {
         const union = Type.Union(items);
         replaceProperties(union, {
             anyOf: items.map((item, index) => item.anyOf[0].fields.length === 0
-                ? ({
+                ? {
                     ...item.anyOf[0],
                     index,
-                })
-                : ({
+                }
+                : {
                     dataType: "constructor",
                     title: (() => {
                         const title = item.anyOf[0].fields[0].title;
@@ -125,7 +128,7 @@ export const Data = {
                     index,
                     fields: item.anyOf[0].fields[0].items ||
                         item.anyOf[0].fields[0].anyOf[0].fields,
-                })),
+                }),
         });
         return union;
     },
@@ -152,12 +155,14 @@ export const Data = {
         }
         const literal = Type.Literal(title);
         replaceProperties(literal, {
-            anyOf: [{
+            anyOf: [
+                {
                     dataType: "constructor",
                     title,
                     index: 0,
                     fields: [],
-                }],
+                },
+            ],
         });
         return literal;
     },
@@ -169,9 +174,7 @@ export const Data = {
                     description: "An optional value.",
                     dataType: "constructor",
                     index: 0,
-                    fields: [
-                        item,
-                    ],
+                    fields: [item],
                 },
                 {
                     title: "None",
@@ -211,9 +214,12 @@ export const Data = {
  */
 function to(data, type) {
     function serialize(data) {
+        const bucket = [];
         try {
             if (typeof data === "bigint") {
-                return C.PlutusData.new_integer(C.BigInt.from_str(data.toString()));
+                const integer = C.BigInt.from_str(data.toString());
+                bucket.push(integer);
+                return C.PlutusData.new_integer(integer);
             }
             else if (typeof data === "string") {
                 return C.PlutusData.new_bytes(fromHex(data));
@@ -221,18 +227,37 @@ function to(data, type) {
             else if (data instanceof Constr) {
                 const { index, fields } = data;
                 const plutusList = C.PlutusList.new();
-                fields.forEach((field) => plutusList.add(serialize(field)));
-                return C.PlutusData.new_constr_plutus_data(C.ConstrPlutusData.new(C.BigNum.from_str(index.toString()), plutusList));
+                bucket.push(plutusList);
+                fields.forEach((field) => {
+                    const serializedField = serialize(field);
+                    plutusList.add(serializedField);
+                    bucket.push(serializedField);
+                });
+                const constrIndex = C.BigNum.from_str(index.toString());
+                bucket.push(constrIndex);
+                const cosntrPlutusData = C.ConstrPlutusData.new(constrIndex, plutusList);
+                bucket.push(cosntrPlutusData);
+                return C.PlutusData.new_constr_plutus_data(cosntrPlutusData);
             }
             else if (data instanceof Array) {
                 const plutusList = C.PlutusList.new();
-                data.forEach((arg) => plutusList.add(serialize(arg)));
+                bucket.push(plutusList);
+                data.forEach((arg) => {
+                    const serializedArg = serialize(arg);
+                    plutusList.add(serializedArg);
+                    bucket.push(serializedArg);
+                });
                 return C.PlutusData.new_list(plutusList);
             }
             else if (data instanceof Map) {
                 const plutusMap = C.PlutusMap.new();
+                bucket.push(plutusMap);
                 for (const [key, value] of data.entries()) {
-                    plutusMap.insert(serialize(key), serialize(value));
+                    const serializedKey = serialize(key);
+                    bucket.push(serializedKey);
+                    const serializedValue = serialize(value);
+                    bucket.push(serializedValue);
+                    plutusMap.insert(serializedKey, serializedValue);
                 }
                 return C.PlutusData.new_map(plutusMap);
             }
@@ -241,9 +266,15 @@ function to(data, type) {
         catch (error) {
             throw new Error("Could not serialize the data: " + error);
         }
+        finally {
+            Freeables.free(...bucket);
+        }
     }
     const d = type ? castTo(data, type) : data;
-    return toHex(serialize(d).to_bytes());
+    const serializedD = serialize(d);
+    const result = toHex(serializedD.to_bytes());
+    serializedD.free();
+    return result;
 }
 /**
  *  Convert Cbor encoded data to Data.\
@@ -251,41 +282,66 @@ function to(data, type) {
  */
 function from(raw, type) {
     function deserialize(data) {
-        if (data.kind() === 0) {
-            const constr = data.as_constr_plutus_data();
-            const l = constr.data();
-            const desL = [];
-            for (let i = 0; i < l.len(); i++) {
-                desL.push(deserialize(l.get(i)));
+        const bucket = [];
+        try {
+            if (data.kind() === 0) {
+                const constr = data.as_constr_plutus_data();
+                bucket.push(constr);
+                const l = constr.data();
+                bucket.push(l);
+                const desL = [];
+                for (let i = 0; i < l.len(); i++) {
+                    const des = l.get(i);
+                    bucket.push(des);
+                    desL.push(deserialize(des));
+                }
+                const alternativeConstr = constr.alternative();
+                bucket.push(alternativeConstr);
+                return new Constr(parseInt(alternativeConstr.to_str()), desL);
             }
-            return new Constr(parseInt(constr.alternative().to_str()), desL);
-        }
-        else if (data.kind() === 1) {
-            const m = data.as_map();
-            const desM = new Map();
-            const keys = m.keys();
-            for (let i = 0; i < keys.len(); i++) {
-                desM.set(deserialize(keys.get(i)), deserialize(m.get(keys.get(i))));
+            else if (data.kind() === 1) {
+                const m = data.as_map();
+                bucket.push(m);
+                const desM = new Map();
+                const keys = m.keys();
+                bucket.push(keys);
+                for (let i = 0; i < keys.len(); i++) {
+                    const key = keys.get(i);
+                    bucket.push(key);
+                    const value = m.get(key);
+                    bucket.push(value);
+                    desM.set(deserialize(key), deserialize(value));
+                }
+                return desM;
             }
-            return desM;
-        }
-        else if (data.kind() === 2) {
-            const l = data.as_list();
-            const desL = [];
-            for (let i = 0; i < l.len(); i++) {
-                desL.push(deserialize(l.get(i)));
+            else if (data.kind() === 2) {
+                const l = data.as_list();
+                bucket.push(l);
+                const desL = [];
+                for (let i = 0; i < l.len(); i++) {
+                    const elem = l.get(i);
+                    bucket.push(elem);
+                    desL.push(deserialize(elem));
+                }
+                return desL;
             }
-            return desL;
+            else if (data.kind() === 3) {
+                const i = data.as_integer();
+                bucket.push(i);
+                return BigInt(i.to_str());
+            }
+            else if (data.kind() === 4) {
+                return toHex(data.as_bytes());
+            }
+            throw new Error("Unsupported type");
         }
-        else if (data.kind() === 3) {
-            return BigInt(data.as_integer().to_str());
+        finally {
+            Freeables.free(...bucket);
         }
-        else if (data.kind() === 4) {
-            return toHex(data.as_bytes());
-        }
-        throw new Error("Unsupported type");
     }
-    const data = deserialize(C.PlutusData.from_bytes(fromHex(raw)));
+    const plutusData = C.PlutusData.from_bytes(fromHex(raw));
+    const data = deserialize(plutusData);
+    plutusData.free();
     return type ? castFrom(data, type) : data;
 }
 /**
@@ -326,9 +382,7 @@ function toJson(plutusData) {
             (typeof data === "string" &&
                 !isNaN(parseInt(data)) &&
                 data.slice(-1) === "n")) {
-            const bigint = typeof data === "string"
-                ? BigInt(data.slice(0, -1))
-                : data;
+            const bigint = typeof data === "string" ? BigInt(data.slice(0, -1)) : data;
             return parseInt(bigint.toString());
         }
         if (typeof data === "string") {
@@ -379,13 +433,15 @@ function castFrom(data, type) {
         }
         case "constructor": {
             if (isVoid(shape)) {
-                if (!(data instanceof Constr) || data.index !== 0 ||
+                if (!(data instanceof Constr) ||
+                    data.index !== 0 ||
                     data.fields.length !== 0) {
                     throw new Error("Could not type cast to void.");
                 }
                 return undefined;
             }
-            else if (data instanceof Constr && data.index === shape.index &&
+            else if (data instanceof Constr &&
+                data.index === shape.index &&
                 (shape.hasConstr || shape.hasConstr === undefined)) {
                 const fields = {};
                 if (shape.fields.length !== data.fields.length) {
@@ -393,14 +449,15 @@ function castFrom(data, type) {
                 }
                 shape.fields.forEach((field, fieldIndex) => {
                     const title = field.title || "wrapper";
-                    if ((/[A-Z]/.test(title[0]))) {
+                    if (/[A-Z]/.test(title[0])) {
                         throw new Error("Could not type cast to object. Object properties need to start with a lowercase letter.");
                     }
                     fields[title] = castFrom(data.fields[fieldIndex], field);
                 });
                 return fields;
             }
-            else if (data instanceof Array && !shape.hasConstr &&
+            else if (data instanceof Array &&
+                !shape.hasConstr &&
                 shape.hasConstr !== undefined) {
                 const fields = {};
                 if (shape.fields.length !== data.length) {
@@ -408,7 +465,7 @@ function castFrom(data, type) {
                 }
                 shape.fields.forEach((field, fieldIndex) => {
                     const title = field.title || "wrapper";
-                    if ((/[A-Z]/.test(title[0]))) {
+                    if (/[A-Z]/.test(title[0])) {
                         throw new Error("Could not type cast to object. Object properties need to start with a lowercase letter.");
                     }
                     fields[title] = castFrom(data[fieldIndex], field);
@@ -467,7 +524,7 @@ function castFrom(data, type) {
                         throw new Error("Could not type cast to enum.");
                     }
                     else {
-                        if (!(/[A-Z]/.test(enumShape.title))) {
+                        if (!/[A-Z]/.test(enumShape.title)) {
                             throw new Error("Could not type cast to enum. Enums need to start with an uppercase letter.");
                         }
                         if (enumShape.fields.length !== data.fields.length) {
@@ -475,7 +532,10 @@ function castFrom(data, type) {
                         }
                         // check if named args
                         const args = enumShape.fields[0].title
-                            ? Object.fromEntries(enumShape.fields.map((field, index) => [field.title, castFrom(data.fields[index], field)]))
+                            ? Object.fromEntries(enumShape.fields.map((field, index) => [
+                                field.title,
+                                castFrom(data.fields[index], field),
+                            ]))
                             : enumShape.fields.map((field, index) => castFrom(data.fields[index], field));
                         return {
                             [enumShape.title]: args,
@@ -488,9 +548,7 @@ function castFrom(data, type) {
         case "list": {
             if (shape.items instanceof Array) {
                 // tuple
-                if (data instanceof Constr &&
-                    data.index === 0 &&
-                    shape.hasConstr) {
+                if (data instanceof Constr && data.index === 0 && shape.hasConstr) {
                     return data.fields.map((field, index) => castFrom(field, shape.items[index]));
                 }
                 else if (data instanceof Array && !shape.hasConstr) {
@@ -513,8 +571,7 @@ function castFrom(data, type) {
             }
             mapConstraints(data, shape);
             const map = new Map();
-            for (const [key, value] of (data)
-                .entries()) {
+            for (const [key, value] of data.entries()) {
                 map.set(castFrom(key, shape.keys), castFrom(value, shape.values));
             }
             return map;
@@ -552,12 +609,13 @@ function castTo(struct, type) {
                 }
                 return new Constr(0, []);
             }
-            else if (typeof struct !== "object" || struct === null ||
+            else if (typeof struct !== "object" ||
+                struct === null ||
                 shape.fields.length !== Object.keys(struct).length) {
                 throw new Error("Could not type cast to constructor.");
             }
             const fields = shape.fields.map((field) => castTo(struct[field.title || "wrapper"], field));
-            return (shape.hasConstr || shape.hasConstr === undefined)
+            return shape.hasConstr || shape.hasConstr === undefined
                 ? new Constr(shape.index, fields)
                 : fields;
         }
@@ -580,14 +638,12 @@ function castTo(struct, type) {
                     if (fields.length !== 1) {
                         throw new Error("Could not type cast to nullable object.");
                     }
-                    return new Constr(0, [
-                        castTo(struct, fields[0]),
-                    ]);
+                    return new Constr(0, [castTo(struct, fields[0])]);
                 }
             }
             switch (typeof struct) {
                 case "string": {
-                    if (!(/[A-Z]/.test(struct[0]))) {
+                    if (!/[A-Z]/.test(struct[0])) {
                         throw new Error("Could not type cast to enum. Enum needs to start with an uppercase letter.");
                     }
                     const enumIndex = shape.anyOf.findIndex((s) => s.dataType === "constructor" &&
@@ -601,11 +657,10 @@ function castTo(struct, type) {
                     if (struct === null)
                         throw new Error("Could not type cast to enum.");
                     const structTitle = Object.keys(struct)[0];
-                    if (!(/[A-Z]/.test(structTitle))) {
+                    if (!/[A-Z]/.test(structTitle)) {
                         throw new Error("Could not type cast to enum. Enum needs to start with an uppercase letter.");
                     }
-                    const enumEntry = shape.anyOf.find((s) => s.dataType === "constructor" &&
-                        s.title === structTitle);
+                    const enumEntry = shape.anyOf.find((s) => s.dataType === "constructor" && s.title === structTitle);
                     if (!enumEntry)
                         throw new Error("Could not type cast to enum.");
                     const args = struct[structTitle];
@@ -642,8 +697,7 @@ function castTo(struct, type) {
             }
             mapConstraints(struct, shape);
             const map = new Map();
-            for (const [key, value] of (struct)
-                .entries()) {
+            for (const [key, value] of struct.entries()) {
                 map.set(castTo(key, shape.keys), castTo(value, shape.values));
             }
             return map;
@@ -669,8 +723,9 @@ function integerConstraints(integer, shape) {
     }
 }
 function bytesConstraints(bytes, shape) {
-    if (shape.enum && !shape.enum.some((keyword) => keyword === bytes))
+    if (shape.enum && !shape.enum.some((keyword) => keyword === bytes)) {
         throw new Error(`None of the keywords match with '${bytes}'.`);
+    }
     if (shape.minLength && bytes.length / 2 < shape.minLength) {
         throw new Error(`Bytes need to have a length of at least ${shape.minLength} bytes.`);
     }
@@ -685,7 +740,7 @@ function listConstraints(list, shape) {
     if (shape.maxItems && list.length > shape.maxItems) {
         throw new Error(`Array can contain at most ${shape.maxItems} items.`);
     }
-    if (shape.uniqueItems && (new Set(list)).size !== list.length) {
+    if (shape.uniqueItems && new Set(list).size !== list.length) {
         // Note this only works for primitive types like string and bigint.
         throw new Error("Array constains duplicates.");
     }
@@ -699,15 +754,17 @@ function mapConstraints(map, shape) {
     }
 }
 function isBoolean(shape) {
-    return shape.anyOf && shape.anyOf[0]?.title === "False" &&
-        shape.anyOf[1]?.title === "True";
+    return (shape.anyOf &&
+        shape.anyOf[0]?.title === "False" &&
+        shape.anyOf[1]?.title === "True");
 }
 function isVoid(shape) {
     return shape.index === 0 && shape.fields.length === 0;
 }
 function isNullable(shape) {
-    return shape.anyOf && shape.anyOf[0]?.title === "Some" &&
-        shape.anyOf[1]?.title === "None";
+    return (shape.anyOf &&
+        shape.anyOf[0]?.title === "Some" &&
+        shape.anyOf[1]?.title === "None");
 }
 function replaceProperties(object, properties) {
     Object.keys(object).forEach((key) => {

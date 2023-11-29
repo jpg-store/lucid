@@ -1,6 +1,7 @@
 import { C } from "../core/mod.js";
 import { applyDoubleCborEncoding, fromHex, toHex } from "../utils/mod.js";
 import packageJson from "../../package.js";
+import { Freeables } from "../utils/freeable.js";
 export class Blockfrost {
     constructor(url, projectId) {
         Object.defineProperty(this, "url", {
@@ -43,9 +44,11 @@ export class Blockfrost {
         const queryPredicate = (() => {
             if (typeof addressOrCredential === "string")
                 return addressOrCredential;
-            const credentialBech32 = addressOrCredential.type === "Key"
-                ? C.Ed25519KeyHash.from_hex(addressOrCredential.hash).to_bech32("addr_vkh")
-                : C.ScriptHash.from_hex(addressOrCredential.hash).to_bech32("addr_vkh"); // should be 'script' (CIP-0005)
+            const hash = addressOrCredential.type === "Key"
+                ? C.Ed25519KeyHash.from_hex(addressOrCredential.hash)
+                : C.ScriptHash.from_hex(addressOrCredential.hash);
+            const credentialBech32 = hash.to_bech32("addr_vkh"); // should be 'script' according to CIP-0005, but to maintain bakcwards compatabiltiy I am not changing this
+            hash.free();
             return credentialBech32;
         })();
         let result = [];
@@ -71,9 +74,11 @@ export class Blockfrost {
         const queryPredicate = (() => {
             if (typeof addressOrCredential === "string")
                 return addressOrCredential;
-            const credentialBech32 = addressOrCredential.type === "Key"
-                ? C.Ed25519KeyHash.from_hex(addressOrCredential.hash).to_bech32("addr_vkh")
-                : C.ScriptHash.from_hex(addressOrCredential.hash).to_bech32("addr_vkh"); // should be 'script' (CIP-0005)
+            const hash = addressOrCredential.type === "Key"
+                ? C.Ed25519KeyHash.from_hex(addressOrCredential.hash)
+                : C.ScriptHash.from_hex(addressOrCredential.hash);
+            const credentialBech32 = hash.to_bech32("addr_vkh"); // should be 'script' according to CIP-0005, but to maintain bakcwards compatabiltiy I am not changing this
+            hash.free();
             return credentialBech32;
         })();
         let result = [];
@@ -114,7 +119,9 @@ export class Blockfrost {
         // TODO: Make sure old already spent UTxOs are not retrievable.
         const queryHashes = [...new Set(outRefs.map((outRef) => outRef.txHash))];
         const utxos = await Promise.all(queryHashes.map(async (txHash) => {
-            const result = await fetch(`${this.url}/txs/${txHash}/utxos`, { headers: { project_id: this.projectId, lucid } }).then((res) => res.json());
+            const result = await fetch(`${this.url}/txs/${txHash}/utxos`, {
+                headers: { project_id: this.projectId, lucid },
+            }).then((res) => res.json());
             if (!result || result.error) {
                 return [];
             }
@@ -126,10 +133,15 @@ export class Blockfrost {
             }));
             return this.blockfrostUtxosToUtxos(utxosResult);
         }));
-        return utxos.reduce((acc, utxos) => acc.concat(utxos), []).filter((utxo) => outRefs.some((outRef) => utxo.txHash === outRef.txHash && utxo.outputIndex === outRef.outputIndex));
+        return utxos
+            .reduce((acc, utxos) => acc.concat(utxos), [])
+            .filter((utxo) => outRefs.some((outRef) => utxo.txHash === outRef.txHash &&
+            utxo.outputIndex === outRef.outputIndex));
     }
     async getDelegation(rewardAddress) {
-        const result = await fetch(`${this.url}/accounts/${rewardAddress}`, { headers: { project_id: this.projectId, lucid } }).then((res) => res.json());
+        const result = await fetch(`${this.url}/accounts/${rewardAddress}`, {
+            headers: { project_id: this.projectId, lucid },
+        }).then((res) => res.json());
         if (!result || result.error) {
             return { poolId: null, rewards: 0n };
         }
@@ -190,8 +202,8 @@ export class Blockfrost {
             datumHash: (!r.inline_datum && r.data_hash) || undefined,
             datum: r.inline_datum || undefined,
             scriptRef: r.reference_script_hash
-                ? (await (async () => {
-                    const { type, } = await fetch(`${this.url}/scripts/${r.reference_script_hash}`, {
+                ? await (async () => {
+                    const { type } = await fetch(`${this.url}/scripts/${r.reference_script_hash}`, {
                         headers: { project_id: this.projectId, lucid },
                     }).then((res) => res.json());
                     // TODO: support native scripts
@@ -203,7 +215,7 @@ export class Blockfrost {
                         type: type === "plutusV1" ? "PlutusV1" : "PlutusV2",
                         script: applyDoubleCborEncoding(script),
                     };
-                })())
+                })()
                 : undefined,
         }))));
     }
@@ -214,35 +226,61 @@ export class Blockfrost {
  */
 export function datumJsonToCbor(json) {
     const convert = (json) => {
-        if (!isNaN(json.int)) {
-            return C.PlutusData.new_integer(C.BigInt.from_str(json.int.toString()));
+        const bucket = [];
+        try {
+            if (!isNaN(json.int)) {
+                const int = C.BigInt.from_str(json.int.toString());
+                bucket.push(int);
+                return C.PlutusData.new_integer(int);
+            }
+            else if (json.bytes || !isNaN(Number(json.bytes))) {
+                return C.PlutusData.new_bytes(fromHex(json.bytes));
+            }
+            else if (json.map) {
+                const m = C.PlutusMap.new();
+                bucket.push(m);
+                json.map.forEach(({ k, v }) => {
+                    const key = convert(k);
+                    bucket.push(key);
+                    const value = convert(v);
+                    bucket.push(value);
+                    m.insert(key, value);
+                });
+                return C.PlutusData.new_map(m);
+            }
+            else if (json.list) {
+                const l = C.PlutusList.new();
+                bucket.push(l);
+                json.list.forEach((v) => {
+                    const value = convert(v);
+                    bucket.push(value);
+                    l.add(value);
+                });
+                return C.PlutusData.new_list(l);
+            }
+            else if (!isNaN(json.constructor)) {
+                const l = C.PlutusList.new();
+                bucket.push(l);
+                json.fields.forEach((v) => {
+                    const value = convert(v);
+                    bucket.push(value);
+                    l.add(value);
+                });
+                const constructorIndex = C.BigNum.from_str(json.constructor.toString());
+                bucket.push(constructorIndex);
+                const plutusData = C.ConstrPlutusData.new(constructorIndex, l);
+                bucket.push(plutusData);
+                return C.PlutusData.new_constr_plutus_data(plutusData);
+            }
+            throw new Error("Unsupported type");
         }
-        else if (json.bytes || !isNaN(Number(json.bytes))) {
-            return C.PlutusData.new_bytes(fromHex(json.bytes));
+        finally {
+            Freeables.free(...bucket);
         }
-        else if (json.map) {
-            const m = C.PlutusMap.new();
-            json.map.forEach(({ k, v }) => {
-                m.insert(convert(k), convert(v));
-            });
-            return C.PlutusData.new_map(m);
-        }
-        else if (json.list) {
-            const l = C.PlutusList.new();
-            json.list.forEach((v) => {
-                l.add(convert(v));
-            });
-            return C.PlutusData.new_list(l);
-        }
-        else if (!isNaN(json.constructor)) {
-            const l = C.PlutusList.new();
-            json.fields.forEach((v) => {
-                l.add(convert(v));
-            });
-            return C.PlutusData.new_constr_plutus_data(C.ConstrPlutusData.new(C.BigNum.from_str(json.constructor.toString()), l));
-        }
-        throw new Error("Unsupported type");
     };
-    return toHex(convert(json).to_bytes());
+    const convertedJson = convert(json);
+    const cbor = convertedJson.to_bytes();
+    convertedJson.free();
+    return toHex(cbor);
 }
 const lucid = packageJson.version; // Lucid version

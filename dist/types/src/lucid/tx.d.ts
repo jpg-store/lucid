@@ -73,6 +73,8 @@ export declare class Tx {
     apply(callback: (thisTx: Tx) => unknown): Tx;
     /** Compose transactions. */
     compose(tx: Tx | null): Tx;
+    free(): void;
+    /** Completes the transaction. This might fail, you should free the txBuilder when you are done with it. */
     complete(options?: {
         change?: {
             address?: Address;

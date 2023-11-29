@@ -26,6 +26,13 @@ export class TxSigned {
     }
     /** Return the transaction hash. */
     toHash() {
-        return C.hash_transaction(this.txSigned.body()).to_hex();
+        const hash = C.hash_transaction(this.txSigned.body());
+        const txHash = hash.to_hex();
+        hash.free();
+        return txHash;
+    }
+    /** Since this object has WASM fields, we must use the free method to free the fields */
+    free() {
+        this.txSigned.free();
     }
 }

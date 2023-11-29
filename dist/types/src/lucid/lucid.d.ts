@@ -1,6 +1,6 @@
 import { C } from "../core/mod.js";
 import { Utils } from "../utils/mod.js";
-import { Address, Credential, Delegation, ExternalWallet, Json, Network, OutRef, Payload, PrivateKey, ProtocolParameters, Provider, RewardAddress, SignedMessage, Slot, Transaction, TxHash, Unit, UTxO, Wallet, WalletApi } from "../types/mod.js";
+import { Address, Credential, Delegation, ExternalWallet, Json, Network, OutRef, Payload, PrivateKey, ProtocolParameters, Provider, RewardAddress, SignedMessage, Slot, SlotConfig, Transaction, TxHash, Unit, UTxO, Wallet, WalletApi } from "../types/mod.js";
 import { Tx } from "./tx.js";
 import { TxComplete } from "./tx_complete.js";
 import { Message } from "./message.js";
@@ -11,13 +11,14 @@ declare type LucidConstructorArgs = {
     protocolParameters?: ProtocolParameters;
 };
 export declare class Lucid {
-    protocolParameters: ProtocolParameters;
-    txBuilderConfig: C.TransactionBuilderConfig;
+    protocolParameters?: ProtocolParameters;
+    slotConfig: SlotConfig;
     wallet: Wallet;
     provider: Provider;
     network: Network;
     utils: Utils;
     static new({ provider, network, protocolParameters, }: LucidConstructorArgs): Promise<Lucid>;
+    getTransactionBuilderConfig(): C.TransactionBuilderConfig;
     /**
      * Switch provider and/or network.
      * If provider or network unset, no overwriting happens. Provider or network from current instance are taken then.
@@ -50,7 +51,7 @@ export declare class Lucid {
      * Emulates a wallet by constructing it with the utxos and an address.
      * If utxos are not set, utxos are fetched from the provided address.
      */
-    selectWalletFrom({ address, utxos, rewardAddress, collateral, }: ExternalWallet): Lucid;
+    selectWalletFrom({ address, utxos, rewardAddress }: ExternalWallet): Lucid;
     /**
      * Select wallet from a seed phrase (e.g. 15 or 24 words). You have the option to choose between a Base address (with stake credential)
      * and Enterprise address (without stake credential). You can also decide which account index to derive. By default account 0 is derived.

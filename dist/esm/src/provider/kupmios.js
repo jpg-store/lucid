@@ -67,8 +67,7 @@ export class Kupmios {
         const queryPredicate = isAddress
             ? addressOrCredential
             : addressOrCredential.hash;
-        const result = await fetch(`${this.kupoUrl}/matches/${queryPredicate}${isAddress ? "" : "/*"}?unspent`)
-            .then((res) => res.json());
+        const result = await fetch(`${this.kupoUrl}/matches/${queryPredicate}${isAddress ? "" : "/*"}?unspent`).then((res) => res.json());
         return this.kupmiosUtxosToUtxos(result);
     }
     async getUtxosWithUnit(addressOrCredential, unit) {
@@ -77,14 +76,12 @@ export class Kupmios {
             ? addressOrCredential
             : addressOrCredential.hash;
         const { policyId, assetName } = fromUnit(unit);
-        const result = await fetch(`${this.kupoUrl}/matches/${queryPredicate}${isAddress ? "" : "/*"}?unspent&policy_id=${policyId}${assetName ? `&asset_name=${assetName}` : ""}`)
-            .then((res) => res.json());
+        const result = await fetch(`${this.kupoUrl}/matches/${queryPredicate}${isAddress ? "" : "/*"}?unspent&policy_id=${policyId}${assetName ? `&asset_name=${assetName}` : ""}`).then((res) => res.json());
         return this.kupmiosUtxosToUtxos(result);
     }
     async getUtxoByUnit(unit) {
         const { policyId, assetName } = fromUnit(unit);
-        const result = await fetch(`${this.kupoUrl}/matches/${policyId}.${assetName ? `${assetName}` : "*"}?unspent`)
-            .then((res) => res.json());
+        const result = await fetch(`${this.kupoUrl}/matches/${policyId}.${assetName ? `${assetName}` : "*"}?unspent`).then((res) => res.json());
         const utxos = await this.kupmiosUtxosToUtxos(result);
         if (utxos.length > 1) {
             throw new Error("Unit needs to be an NFT or only held by one address.");
@@ -97,11 +94,14 @@ export class Kupmios {
             const result = await fetch(`${this.kupoUrl}/matches/*@${txHash}?unspent`).then((res) => res.json());
             return this.kupmiosUtxosToUtxos(result);
         }));
-        return utxos.reduce((acc, utxos) => acc.concat(utxos), []).filter((utxo) => outRefs.some((outRef) => utxo.txHash === outRef.txHash && utxo.outputIndex === outRef.outputIndex));
+        return utxos
+            .reduce((acc, utxos) => acc.concat(utxos), [])
+            .filter((utxo) => outRefs.some((outRef) => utxo.txHash === outRef.txHash &&
+            utxo.outputIndex === outRef.outputIndex));
     }
     async getDelegation(rewardAddress) {
         const client = await this.ogmiosWsp("Query", {
-            query: { "delegationsAndRewards": [rewardAddress] },
+            query: { delegationsAndRewards: [rewardAddress] },
         });
         return new Promise((res, rej) => {
             client.addEventListener("message", (msg) => {
@@ -160,9 +160,10 @@ export class Kupmios {
         });
     }
     kupmiosUtxosToUtxos(utxos) {
+        return Promise.all(
         // deno-lint-ignore no-explicit-any
-        return Promise.all(utxos.map(async (utxo) => {
-            return ({
+        utxos.map(async (utxo) => {
+            return {
                 txHash: utxo.transaction_id,
                 outputIndex: parseInt(utxo.output_index),
                 address: utxo.address,
@@ -179,24 +180,30 @@ export class Kupmios {
                     : null,
                 scriptRef: utxo.script_hash &&
                     (await (async () => {
-                        const { script, language, } = await fetch(`${this.kupoUrl}/scripts/${utxo.script_hash}`).then((res) => res.json());
+                        const { script, language } = await fetch(`${this.kupoUrl}/scripts/${utxo.script_hash}`).then((res) => res.json());
                         if (language === "native") {
                             return { type: "Native", script };
                         }
                         else if (language === "plutus:v1") {
+                            const plutusScript = C.PlutusScript.new(fromHex(script));
+                            const scriptBytes = plutusScript.to_bytes();
+                            plutusScript.free();
                             return {
                                 type: "PlutusV1",
-                                script: toHex(C.PlutusScript.new(fromHex(script)).to_bytes()),
+                                script: toHex(scriptBytes),
                             };
                         }
                         else if (language === "plutus:v2") {
+                            const plutusScript = C.PlutusScript.new(fromHex(script));
+                            const scriptBytes = plutusScript.to_bytes();
+                            plutusScript.free();
                             return {
                                 type: "PlutusV2",
-                                script: toHex(C.PlutusScript.new(fromHex(script)).to_bytes()),
+                                script: toHex(scriptBytes),
                             };
                         }
                     })()),
-            });
+            };
         }));
     }
     async ogmiosWsp(methodname, args) {

@@ -1,5 +1,6 @@
 import { signData } from "../misc/sign_data.js";
 import { C } from "../mod.js";
+import { Freeables } from "../utils/freeable.js";
 export class Message {
     constructor(lucid, address, payload) {
         Object.defineProperty(this, "lucid", {
@@ -30,13 +31,24 @@ export class Message {
     }
     /** Sign message with a separate private key. */
     signWithPrivateKey(privateKey) {
-        const { paymentCredential, stakeCredential, address: { hex: hexAddress } } = this.lucid.utils.getAddressDetails(this.address);
-        const keyHash = paymentCredential?.hash || stakeCredential?.hash;
-        const keyHashOriginal = C.PrivateKey.from_bech32(privateKey).to_public()
-            .hash().to_hex();
-        if (!keyHash || keyHash !== keyHashOriginal) {
-            throw new Error(`Cannot sign message for address: ${this.address}.`);
+        const bucket = [];
+        try {
+            const { paymentCredential, stakeCredential, address: { hex: hexAddress }, } = this.lucid.utils.getAddressDetails(this.address);
+            const keyHash = paymentCredential?.hash || stakeCredential?.hash;
+            const skey = C.PrivateKey.from_bech32(privateKey);
+            bucket.push(skey);
+            const vkey = skey.to_public();
+            bucket.push(vkey);
+            const hash = vkey.hash();
+            bucket.push(hash);
+            const keyHashOriginal = hash.to_hex();
+            if (!keyHash || keyHash !== keyHashOriginal) {
+                throw new Error(`Cannot sign message for address: ${this.address}.`);
+            }
+            return signData(hexAddress, this.payload, privateKey);
         }
-        return signData(hexAddress, this.payload, privateKey);
+        finally {
+            Freeables.free(...bucket);
+        }
     }
 }

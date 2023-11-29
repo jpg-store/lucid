@@ -16,6 +16,10 @@ For details about documentation go to the original repo and check the documentat
 
 
 
+### Lucid Fork
+
+Jucid is JSHy's fork of Lucid (Jshy + Lucid = Jucid). Lucid accidentally introduces memory leaks into applications due to incorrect memory management of WASM objects. Jucid handles internal memory correctly, exposes new interfaces to allow you to management objects you use correclty, and is a drop-in replacement for Lucid. Once this fork is merged into Lucid, it is unlikely it will be maintained.
+
 ### Get started
 
 #### NPM

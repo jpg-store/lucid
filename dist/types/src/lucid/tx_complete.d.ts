@@ -30,4 +30,6 @@ export declare class TxComplete {
     toString(): Transaction;
     /** Return the transaction hash. */
     toHash(): TxHash;
+    /** Since this object has WASM fields, we must use the free method to free the fields */
+    free(): void;
 }
