@@ -6,7 +6,7 @@ import { TxComplete } from "./tx_complete.js";
 import { Message } from "./message.js";
 import { Data } from "../plutus/data.js";
 type LucidConstructorArgs = {
-    provider?: Provider;
+    provider: Provider | undefined;
     network?: Network;
     protocolParameters?: ProtocolParameters;
 };
@@ -22,7 +22,7 @@ export declare class Lucid {
      * Switch provider and/or network.
      * If provider or network unset, no overwriting happens. Provider or network from current instance are taken then.
      */
-    switchProvider(provider?: Provider, network?: Network): Promise<Lucid>;
+    switchProvider(provider?: Provider | undefined, network?: Network): Promise<Lucid>;
     newTx(): Tx;
     fromTx(tx: Transaction): TxComplete;
     /** Signs a message. Expects the payload to be Hex encoded. */

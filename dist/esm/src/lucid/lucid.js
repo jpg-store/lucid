@@ -68,11 +68,11 @@ export class Lucid {
      * Switch provider and/or network.
      * If provider or network unset, no overwriting happens. Provider or network from current instance are taken then.
      */
-    async switchProvider(provider, network) {
+    async switchProvider(provider = undefined, network) {
         if (this.network === "Custom") {
             throw new Error("Cannot switch when on custom network.");
         }
-        const lucid = await Lucid.new(provider, network);
+        const lucid = await Lucid.new({ provider, network });
         this.txBuilderConfig = lucid.txBuilderConfig;
         this.provider = provider || this.provider;
         this.network = network || this.network;

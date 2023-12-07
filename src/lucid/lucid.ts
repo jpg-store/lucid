@@ -43,7 +43,7 @@ import { Constr, Data } from "../plutus/data.ts";
 import { Emulator } from "../provider/emulator.ts";
 
 type LucidConstructorArgs = {
-  provider?: Provider;
+  provider: Provider | undefined;
   network?: Network;
   protocolParameters?: ProtocolParameters;
 };
@@ -142,7 +142,7 @@ export class Lucid {
    * Switch provider and/or network.
    * If provider or network unset, no overwriting happens. Provider or network from current instance are taken then.
    */
-  async switchProvider(provider?: Provider, network?: Network): Promise<Lucid> {
+  async switchProvider(provider: Provider | undefined = undefined, network?: Network): Promise<Lucid> {
     if (this.network === "Custom") {
       throw new Error("Cannot switch when on custom network.");
     }
