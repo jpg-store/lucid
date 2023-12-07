@@ -20,7 +20,7 @@ jobs:
         run: deno task build
 
       - name: Lint
-        run: deno lint
+        run: deno check mod.ts
 
       - name: Test
         run: deno task test

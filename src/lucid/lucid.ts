@@ -49,7 +49,7 @@ type LucidConstructorArgs = {
 };
 
 export class Lucid {
-  protocolParameters: ProtocolParameters;
+  protocolParameters!: ProtocolParameters;
   txBuilderConfig!: C.TransactionBuilderConfig;
   wallet!: Wallet;
   provider!: Provider;
@@ -146,7 +146,7 @@ export class Lucid {
     if (this.network === "Custom") {
       throw new Error("Cannot switch when on custom network.");
     }
-    const lucid = await Lucid.new(provider, network);
+    const lucid = await Lucid.new({ provider, network });
     this.txBuilderConfig = lucid.txBuilderConfig;
     this.provider = provider || this.provider;
     this.network = network || this.network;
