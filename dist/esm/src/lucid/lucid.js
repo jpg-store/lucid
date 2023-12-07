@@ -9,44 +9,12 @@ import { SLOT_CONFIG_NETWORK } from "../plutus/time.js";
 import { Data } from "../plutus/data.js";
 import { Emulator } from "../provider/emulator.js";
 export class Lucid {
-    constructor() {
-        Object.defineProperty(this, "protocolParameters", {
-            enumerable: true,
-            configurable: true,
-            writable: true,
-            value: void 0
-        });
-        Object.defineProperty(this, "txBuilderConfig", {
-            enumerable: true,
-            configurable: true,
-            writable: true,
-            value: void 0
-        });
-        Object.defineProperty(this, "wallet", {
-            enumerable: true,
-            configurable: true,
-            writable: true,
-            value: void 0
-        });
-        Object.defineProperty(this, "provider", {
-            enumerable: true,
-            configurable: true,
-            writable: true,
-            value: void 0
-        });
-        Object.defineProperty(this, "network", {
-            enumerable: true,
-            configurable: true,
-            writable: true,
-            value: "Mainnet"
-        });
-        Object.defineProperty(this, "utils", {
-            enumerable: true,
-            configurable: true,
-            writable: true,
-            value: void 0
-        });
-    }
+    protocolParameters;
+    txBuilderConfig;
+    wallet;
+    provider;
+    network = "Mainnet";
+    utils;
     static async new({ provider, network, protocolParameters, }) {
         const lucid = new this();
         if (network)
