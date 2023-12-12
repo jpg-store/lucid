@@ -7289,6 +7289,20 @@ export class TransactionBuilder {
      * inputs to cover the minimum fees. This does not, however, set the txbuilder's fee.
      *
      * change_address is required here in order to determine the min ada requirement precisely
+     * weights is a coma separated representation of a Uint32Arary
+     * @param {TransactionUnspentOutputs} inputs
+     * @param {Address} change_address
+     * @param {string} weights_str
+     */
+    add_inputs_from_impl(inputs: TransactionUnspentOutputs, change_address: Address, weights_str: string): void;
+    /**
+     * This automatically selects and adds inputs from {inputs} consisting of just enough to cover
+     * the outputs that have already been added.
+     * This should be called after adding all certs/outputs/etc and will be an error otherwise.
+     * Adding a change output must be called after via TransactionBuilder::balance()
+     * inputs to cover the minimum fees. This does not, however, set the txbuilder's fee.
+     *
+     * change_address is required here in order to determine the min ada requirement precisely
      * @param {TransactionUnspentOutputs} inputs
      * @param {Address} change_address
      * @param {Uint32Array} weights

@@ -39,6 +39,7 @@ serde_derive = "^1.0.59"
 fraction = "0.10.0"
 num-integer = "0.1.45"
 uplc = { git = "https://github.com/aiken-lang/aiken.git", rev = "cdff149b5e9084f5249992c0dcb9e4ca3a972d05", default-features = false, features = ["native-secp256k1"]}
+js-sys = "=0.3.61"
 
 # non-wasm
 [target.'cfg(not(all(target_arch = "wasm32", not(target_os = "emscripten"))))'.dependencies]
@@ -49,7 +50,6 @@ noop_proc_macro = "0.3.0"
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))'.dependencies]
 wasm-bindgen = { version = "=0.2.84", features = ["serde-serialize"] }
 rand_os = { version = "0.1", features = ["wasm-bindgen"] }
-js-sys = "=0.3.61"
 wasm-bindgen-futures = "=0.4.34"
 
 [profile.release]

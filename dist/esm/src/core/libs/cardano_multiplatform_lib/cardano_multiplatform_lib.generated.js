@@ -1,7 +1,7 @@
 // @generated file from wasmbuild -- do not edit
 // deno-lint-ignore-file
 // deno-fmt-ignore-file
-// source-hash: ab17726f2df5571be15d036e67423022ed8f63e4
+// source-hash: d34c7fb42460a2c2bb47bc5a417c75e5a808b315
 let wasm;
 const heap = new Array(128).fill(undefined);
 heap.push(undefined, null, true, false);
@@ -708,7 +708,7 @@ function handleError(f, args) {
         wasm.__wbindgen_exn_store(addHeapObject(e));
     }
 }
-function __wbg_adapter_1680(arg0, arg1, arg2, arg3) {
+function __wbg_adapter_1681(arg0, arg1, arg2, arg3) {
     wasm.wasm_bindgen__convert__closures__invoke2_mut__h5b4d9f16616fac4b(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 /** */
@@ -20618,6 +20618,37 @@ export class TransactionBuilder {
      * inputs to cover the minimum fees. This does not, however, set the txbuilder's fee.
      *
      * change_address is required here in order to determine the min ada requirement precisely
+     * weights is a coma separated representation of a Uint32Arary
+     * @param {TransactionUnspentOutputs} inputs
+     * @param {Address} change_address
+     * @param {string} weights_str
+     */
+    add_inputs_from_impl(inputs, change_address, weights_str) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            _assertClass(inputs, TransactionUnspentOutputs);
+            _assertClass(change_address, Address);
+            const ptr0 = passStringToWasm0(weights_str, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.transactionbuilder_add_inputs_from_impl(retptr, this.ptr, inputs.ptr, change_address.ptr, ptr0, len0);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            if (r1) {
+                throw takeObject(r0);
+            }
+        }
+        finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * This automatically selects and adds inputs from {inputs} consisting of just enough to cover
+     * the outputs that have already been added.
+     * This should be called after adding all certs/outputs/etc and will be an error otherwise.
+     * Adding a change output must be called after via TransactionBuilder::balance()
+     * inputs to cover the minimum fees. This does not, however, set the txbuilder's fee.
+     *
+     * change_address is required here in order to determine the min ada requirement precisely
      * @param {TransactionUnspentOutputs} inputs
      * @param {Address} change_address
      * @param {Uint32Array} weights
@@ -26804,7 +26835,7 @@ const imports = {
         },
         __wbindgen_string_get: function (arg0, arg1) {
             const obj = getObject(arg1);
-            const ret = typeof (obj) === "string" ? obj : undefined;
+            const ret = typeof obj === "string" ? obj : undefined;
             var ptr0 = isLikeNone(ret)
                 ? 0
                 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
@@ -26867,7 +26898,7 @@ const imports = {
         },
         __wbindgen_is_object: function (arg0) {
             const val = getObject(arg0);
-            const ret = typeof (val) === "object" && val !== null;
+            const ret = typeof val === "object" && val !== null;
             return ret;
         },
         __wbg_versions_8404a8b21b9337ae: function (arg0) {
@@ -26971,7 +27002,7 @@ const imports = {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return __wbg_adapter_1680(a, state0.b, arg0, arg1);
+                        return __wbg_adapter_1681(a, state0.b, arg0, arg1);
                     }
                     finally {
                         state0.a = a;
@@ -27063,7 +27094,7 @@ const imports = {
             const ret = wasm.memory;
             return addHeapObject(ret);
         },
-        __wbindgen_closure_wrapper7018: function (arg0, arg1, arg2) {
+        __wbindgen_closure_wrapper7021: function (arg0, arg1, arg2) {
             const ret = makeMutClosure(arg0, arg1, 186, __wbg_adapter_30);
             return addHeapObject(ret);
         },
