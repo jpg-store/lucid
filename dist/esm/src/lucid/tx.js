@@ -429,14 +429,16 @@ export class Tx {
             // We don't free `changeAddress` as it is passed as an Option to the txBuilder and the ownership is passed when passing an Option
             const changeAddress = addressFromWithNetworkCheck(options?.change?.address || (await this.lucid.wallet.address()), this.lucid);
             if (options?.coinSelection || options?.coinSelection === undefined) {
-                this.txBuilder.add_inputs_from(utxos, changeAddress, Uint32Array.from([
-                    200,
-                    1000,
-                    1500,
-                    800,
-                    800,
-                    5000, // weight utxos
-                ]));
+                this.txBuilder.add_inputs_from_impl(utxos, changeAddress, 
+                // Uint32Array.from([
+                //   200, // weight ideal > 100 inputs
+                //   1000, // weight ideal < 100 inputs
+                //   1500, // weight assets if plutus
+                //   800, // weight assets if not plutus
+                //   800, // weight distance if not plutus
+                //   5000, // weight utxos
+                // ]),
+                "200,1000,1500,800,800,5000");
             }
             const { datum, plutusData } = getDatumFromOutputData(options?.change?.outputData);
             if (plutusData) {

@@ -282,12 +282,12 @@ export const NetworkIdKind: Readonly<{
     Mainnet: 1;
     "1": "Mainnet";
 }>;
-export function __wbindgen_string_new(arg0: any, arg1: any): number;
 export function __wbindgen_object_drop_ref(arg0: any): void;
 export function __wbindgen_json_parse(arg0: any, arg1: any): number;
 export function __wbindgen_json_serialize(arg0: any, arg1: any): void;
-export function __wbg_transaction_new(arg0: any): number;
+export function __wbindgen_string_new(arg0: any, arg1: any): number;
 export function __wbg_fetch_16f5dddfc5a913a4(arg0: any, arg1: any): number;
+export function __wbg_transaction_new(arg0: any): number;
 export function __wbindgen_string_get(arg0: any, arg1: any): void;
 export function __wbindgen_object_clone_ref(arg0: any): number;
 export function __wbg_set_a5d34c36a1a4ebd1(...args: any[]): any;
@@ -296,8 +296,7 @@ export function __wbg_newwithstrandinit_c45f0dc6da26fd03(...args: any[]): any;
 export function __wbg_instanceof_Response_fb3a4df648c1859b(arg0: any): boolean;
 export function __wbg_json_b9414eb18cb751d0(...args: any[]): any;
 export function __wbindgen_cb_drop(arg0: any): boolean;
-export function __wbg_randomFillSync_2f6909f8132a175d(...args: any[]): any;
-export function __wbg_getRandomValues_11a236fbf9914290(...args: any[]): any;
+export function __wbg_static_accessor_NODE_MODULE_06b864c18e8ae506(): number;
 export function __wbg_process_5615a087a47ba544(arg0: any): number;
 export function __wbindgen_is_object(arg0: any): boolean;
 export function __wbg_versions_8404a8b21b9337ae(arg0: any): number;
@@ -306,7 +305,8 @@ export function __wbindgen_is_string(arg0: any): boolean;
 export function __wbg_require_0430b68b38d1a77e(...args: any[]): any;
 export function __wbg_crypto_ca5197b41df5e2bd(arg0: any): number;
 export function __wbg_msCrypto_1088c21440b2d7e4(arg0: any): number;
-export function __wbg_static_accessor_NODE_MODULE_06b864c18e8ae506(): number;
+export function __wbg_randomFillSync_2f6909f8132a175d(...args: any[]): any;
+export function __wbg_getRandomValues_11a236fbf9914290(...args: any[]): any;
 export function __wbg_self_e7c1f827057f6584(...args: any[]): any;
 export function __wbg_window_a09ec664e14b1b81(...args: any[]): any;
 export function __wbg_globalThis_87cbb8506fecf3a9(...args: any[]): any;
@@ -331,15 +331,15 @@ export function __wbg_new_d87f272aec784ec0(arg0: any, arg1: any): number;
 export function __wbg_call_eae29933372a39be(arg0: any, arg1: any): number;
 export function __wbindgen_jsval_eq(arg0: any, arg1: any): boolean;
 export function __wbg_self_e0b3266d2d9eba1a(arg0: any): number;
+export function __wbg_require_0993fe224bf8e202(arg0: any, arg1: any): number;
 export function __wbg_crypto_e95a6e54c5c2e37f(arg0: any): number;
 export function __wbg_getRandomValues_dc67302a7bd1aec5(arg0: any): number;
-export function __wbg_require_0993fe224bf8e202(arg0: any, arg1: any): number;
 export function __wbg_randomFillSync_dd2297de5917c74e(arg0: any, arg1: any, arg2: any): void;
 export function __wbg_getRandomValues_02639197c8166a96(arg0: any, arg1: any, arg2: any): void;
 export function __wbindgen_debug_string(arg0: any, arg1: any): void;
 export function __wbindgen_throw(arg0: any, arg1: any): never;
 export function __wbindgen_memory(): number;
-export function __wbindgen_closure_wrapper7018(arg0: any, arg1: any, arg2: any): number;
+export function __wbindgen_closure_wrapper7021(arg0: any, arg1: any, arg2: any): number;
 /** */
 export class Transaction {
     static __wrap(ptr: any): any;
@@ -7038,6 +7038,20 @@ export class TransactionBuilder {
     __destroy_into_raw(): number | undefined;
     ptr: number | undefined;
     free(): void;
+    /**
+     * This automatically selects and adds inputs from {inputs} consisting of just enough to cover
+     * the outputs that have already been added.
+     * This should be called after adding all certs/outputs/etc and will be an error otherwise.
+     * Adding a change output must be called after via TransactionBuilder::balance()
+     * inputs to cover the minimum fees. This does not, however, set the txbuilder's fee.
+     *
+     * change_address is required here in order to determine the min ada requirement precisely
+     * weights is a coma separated representation of a Uint32Arary
+     * @param {TransactionUnspentOutputs} inputs
+     * @param {Address} change_address
+     * @param {string} weights_str
+     */
+    add_inputs_from_impl(inputs: TransactionUnspentOutputs, change_address: Address, weights_str: string): void;
     /**
      * This automatically selects and adds inputs from {inputs} consisting of just enough to cover
      * the outputs that have already been added.

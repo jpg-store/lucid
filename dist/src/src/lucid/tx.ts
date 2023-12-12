@@ -563,17 +563,18 @@ export class Tx {
       );
 
       if (options?.coinSelection || options?.coinSelection === undefined) {
-        this.txBuilder.add_inputs_from(
+        this.txBuilder.add_inputs_from_impl(
           utxos,
           changeAddress,
-          Uint32Array.from([
-            200, // weight ideal > 100 inputs
-            1000, // weight ideal < 100 inputs
-            1500, // weight assets if plutus
-            800, // weight assets if not plutus
-            800, // weight distance if not plutus
-            5000, // weight utxos
-          ]),
+          // Uint32Array.from([
+          //   200, // weight ideal > 100 inputs
+          //   1000, // weight ideal < 100 inputs
+          //   1500, // weight assets if plutus
+          //   800, // weight assets if not plutus
+          //   800, // weight distance if not plutus
+          //   5000, // weight utxos
+          // ]),
+          "200,1000,1500,800,800,5000",
         );
       }
 

@@ -524,6 +524,34 @@ impl TransactionBuilder {
     /// inputs to cover the minimum fees. This does not, however, set the txbuilder's fee.
     ///
     /// change_address is required here in order to determine the min ada requirement precisely
+    /// weights is a coma separated representation of a Uint32Arary
+    pub fn add_inputs_from_impl(
+        &mut self,
+        inputs: &TransactionUnspentOutputs,
+        change_address: &Address,
+        weights_str: String,
+    ) -> Result<(), JsError> {
+        //convert weights to Vec<u32>, don't use unwrap
+        //empty array
+        let mut weights: Vec<u32> = Vec::new();
+        for weight in weights_str.split(",") {
+            let parsed_weight = weight.parse::<u32>();
+            if parsed_weight.is_err() {
+                return Err(JsError::from_str(
+                    "weights must be a comma separated Uint32Array",
+                ));
+            }
+            weights.push(parsed_weight.unwrap());
+        }
+        return self.add_inputs_from(inputs, change_address, &weights);
+    }
+    /// This automatically selects and adds inputs from {inputs} consisting of just enough to cover
+    /// the outputs that have already been added.
+    /// This should be called after adding all certs/outputs/etc and will be an error otherwise.
+    /// Adding a change output must be called after via TransactionBuilder::balance()
+    /// inputs to cover the minimum fees. This does not, however, set the txbuilder's fee.
+    ///
+    /// change_address is required here in order to determine the min ada requirement precisely
     pub fn add_inputs_from(
         &mut self,
         inputs: &TransactionUnspentOutputs,
