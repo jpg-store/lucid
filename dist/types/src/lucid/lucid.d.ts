@@ -51,7 +51,7 @@ export declare class Lucid {
      * Emulates a wallet by constructing it with the utxos and an address.
      * If utxos are not set, utxos are fetched from the provided address.
      */
-    selectWalletFrom({ address, utxos, rewardAddress }: ExternalWallet): Lucid;
+    selectWalletFrom({ address, utxos, rewardAddress, collateral, }: ExternalWallet): Lucid;
     /**
      * Select wallet from a seed phrase (e.g. 15 or 24 words). You have the option to choose between a Base address (with stake credential)
      * and Enterprise address (without stake credential). You can also decide which account index to derive. By default account 0 is derived.

@@ -194,6 +194,9 @@ export class Lucid {
                 return Promise.resolve(bech32);
             },
             rewardAddress: () => Promise.resolve(null),
+            getCollateralCore: () => {
+                return undefined;
+            },
             getUtxos: async () => {
                 return await this.utxosAt(paymentCredentialOf(await this.wallet.address()));
             },
@@ -318,7 +321,7 @@ export class Lucid {
      * Emulates a wallet by constructing it with the utxos and an address.
      * If utxos are not set, utxos are fetched from the provided address.
      */
-    selectWalletFrom({ address, utxos, rewardAddress }) {
+    selectWalletFrom({ address, utxos, rewardAddress, collateral, }) {
         const addressDetails = this.utils.getAddressDetails(address);
         this.wallet = {
             address: () => Promise.resolve(address),
@@ -411,6 +414,9 @@ export class Lucid {
             address: () => Promise.resolve(address),
             rewardAddress: () => Promise.resolve(rewardAddress || null),
             getUtxos: () => this.utxosAt(paymentCredentialOf(address)),
+            getCollateralCore: () => {
+                return undefined;
+            },
             getUtxosCore: async () => {
                 const coreUtxos = C.TransactionUnspentOutputs.new();
                 (await this.utxosAt(paymentCredentialOf(address))).forEach((utxo) => {
