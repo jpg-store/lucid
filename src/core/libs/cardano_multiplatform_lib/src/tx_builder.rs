@@ -6,6 +6,23 @@ use super::utils;
 use super::*;
 use crate::{tx_builder_utils::*, witness_builder::RedeemerWitnessKey};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console, js_name = log)]
+    fn log(s: &str);
+
+    // The `console.log` is quite polymorphic, so we can bind it with multiple
+    // signatures. Note that we need to use `js_name` to ensure we always call
+    // `log` in JS.
+    #[wasm_bindgen(js_namespace = console, js_name = log)]
+    fn log_u32(a: u32);
+
+    // Multiple arguments too!
+    #[wasm_bindgen(js_namespace = console, js_name = log)]
+    fn log_many(a: &str, b: &str);
+}
 
 // comes from witsVKeyNeeded in the Ledger spec
 fn witness_keys_for_cert(
@@ -799,8 +816,14 @@ impl TransactionBuilder {
                 while get_asset(&current_value, (&policy_id, &asset_name))
                     < get_asset(&output_target, (&policy_id, &asset_name))
                 {
+                    unsafe {
+                        log(&format!("Adding asset: {:?} {:?}", &policy_id, &asset_name));
+                    }
                     if relevant_inputs.len() <= 0 {
-                        return Err(JsError::from_str("InputsExhaustedError"));
+                        unsafe {
+                            log(&format!("InputsExhaustedError 823"));
+                        }
+                        return Err(JsError::from_str("InputsExhaustedErrorrrrrrr"));
                     }
                     let index = rand::thread_rng().gen_range(0..relevant_inputs.len());
                     let utxo = relevant_inputs[index].clone();
@@ -829,7 +852,10 @@ impl TransactionBuilder {
             || input_total.checked_add(&current_value)?.coin < output_total.coin
         {
             if relevant_inputs.len() <= 0 {
-                return Err(JsError::from_str("InputsExhaustedError"));
+                unsafe {
+                    log(&format!("InputsExhaustedError 855"));
+                }
+                return Err(JsError::from_str("InputsExhaustedError....."));
             }
             let index = rand::thread_rng().gen_range(0..relevant_inputs.len());
             let utxo = relevant_inputs[index].clone();
