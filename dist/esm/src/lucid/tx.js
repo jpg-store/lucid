@@ -418,9 +418,17 @@ export class Tx {
     async splitChange() {
         const { coinsPerUtxoByte } = await this.lucid.protocolParameters;
         const { changeNativeAssetChunkSize, changeMinUtxo } = this.configuration;
-        const change = this.txBuilder
+        const positiveMintAssets = this.txBuilder.mint()?.as_positive_multiasset();
+        const mintValue = positiveMintAssets && C.Value.new_from_assets(positiveMintAssets);
+        const negativeMintAssets = this.txBuilder.mint()?.as_negative_multiasset();
+        const burnValue = negativeMintAssets && C.Value.new_from_assets(negativeMintAssets);
+        let change = this.txBuilder
             .get_explicit_input()
             .checked_sub(this.txBuilder.get_explicit_output());
+        if (mintValue)
+            change = change.checked_add(mintValue);
+        if (burnValue)
+            change = change.checked_sub(burnValue);
         let changeAda = change.coin();
         let changeAssets = valueToAssets(change);
         const changeAssetsArray = Object.keys(changeAssets)
