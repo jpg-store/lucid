@@ -1,6 +1,6 @@
 {
   "deno.enable": true,
-  "deno.lint": true,
+  "deno.lint": false,
   "deno.disablePaths": [
     "./dist",
     "./node_modules",

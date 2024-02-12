@@ -1,12 +1,12 @@
 {
   "name": "@jpg-store/lucid-cardano",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "license": "MIT",
   "description": "This is a fork of the original Lucid repo compiled into CommonJS. For more information check https://github.com/spacebudz/lucid",
   "repository": "https://github.com/jpg-store/lucid",
   "module": "./dist/esm/mod.js",
   "main": "./dist/esm/mod.js",
-  "types": "./dist/types/mod.d.ts",
+  "types": "./dist/esm/mod.d.ts",
   "scripts": {
     "pack": "wasm-pack build --target nodejs --release"
   },
@@ -27,5 +27,5 @@
       "types": "./dist/types/mod.d.ts"
     }
   },
-  "packageManager": "npm@10.2.4+sha256.36b548120f75f26408d04ff163cd4a699916f1c4b72ebeeab0bbaf054009eb5b"
+  "packageManager": "npm@10.4.0+sha256.0e4e5986526a578a6cdc5647cf862efba03dfcb063672f90bc525433b893fba9"
 }

@@ -19,7 +19,7 @@ await dnt.build({
   },
   scriptModule: false,
   typeCheck: false,
-  skipSourceOutput: true,
+  skipSourceOutput: false,
   shims: {
     webSocket: true,
     undici: false,
@@ -32,6 +32,9 @@ await dnt.build({
 
 Deno.copyFileSync("LICENSE", "dist/LICENSE");
 Deno.copyFileSync("README.md", "dist/README.md");
+Deno.removeSync("dist/.npmignore");
+Deno.removeSync("dist/package.json");
+Deno.removeSync("dist/src", { recursive: true });
 
 // Copy WASM Pack files
 
