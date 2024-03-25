@@ -1,73 +1,58 @@
+"use strict";
 let imports = {};
 imports['__wbindgen_placeholder__'] = module.exports;
 let wasm;
 const { TextDecoder, TextEncoder } = require(`util`);
-
 const heap = new Array(128).fill(undefined);
-
 heap.push(undefined, null, true, false);
-
 function getObject(idx) { return heap[idx]; }
-
 let heap_next = heap.length;
-
 function dropObject(idx) {
-    if (idx < 132) return;
+    if (idx < 132)
+        return;
     heap[idx] = heap_next;
     heap_next = idx;
 }
-
 function takeObject(idx) {
     const ret = getObject(idx);
     dropObject(idx);
     return ret;
 }
-
 let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });
-
 cachedTextDecoder.decode();
-
 let cachedUint8Memory0 = null;
-
 function getUint8Memory0() {
     if (cachedUint8Memory0 === null || cachedUint8Memory0.byteLength === 0) {
         cachedUint8Memory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8Memory0;
 }
-
 function getStringFromWasm0(ptr, len) {
     return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
 }
-
 function addHeapObject(obj) {
-    if (heap_next === heap.length) heap.push(heap.length + 1);
+    if (heap_next === heap.length)
+        heap.push(heap.length + 1);
     const idx = heap_next;
     heap_next = heap[idx];
-
     heap[idx] = obj;
     return idx;
 }
-
 let WASM_VECTOR_LEN = 0;
-
 let cachedTextEncoder = new TextEncoder('utf-8');
-
 const encodeString = (typeof cachedTextEncoder.encodeInto === 'function'
     ? function (arg, view) {
-    return cachedTextEncoder.encodeInto(arg, view);
-}
+        return cachedTextEncoder.encodeInto(arg, view);
+    }
     : function (arg, view) {
-    const buf = cachedTextEncoder.encode(arg);
-    view.set(buf);
-    return {
-        read: arg.length,
-        written: buf.length
-    };
-});
-
+        const buf = cachedTextEncoder.encode(arg);
+        view.set(buf);
+        return {
+            read: arg.length,
+            written: buf.length
+        };
+    });
 function passStringToWasm0(arg, malloc, realloc) {
-
     if (realloc === undefined) {
         const buf = cachedTextEncoder.encode(arg);
         const ptr = malloc(buf.length);
@@ -75,20 +60,16 @@ function passStringToWasm0(arg, malloc, realloc) {
         WASM_VECTOR_LEN = buf.length;
         return ptr;
     }
-
     let len = arg.length;
     let ptr = malloc(len);
-
     const mem = getUint8Memory0();
-
     let offset = 0;
-
     for (; offset < len; offset++) {
         const code = arg.charCodeAt(offset);
-        if (code > 0x7F) break;
+        if (code > 0x7F)
+            break;
         mem[ptr + offset] = code;
     }
-
     if (offset !== len) {
         if (offset !== 0) {
             arg = arg.slice(offset);
@@ -96,32 +77,26 @@ function passStringToWasm0(arg, malloc, realloc) {
         ptr = realloc(ptr, len, len = offset + arg.length * 3);
         const view = getUint8Memory0().subarray(ptr + offset, ptr + len);
         const ret = encodeString(arg, view);
-
         offset += ret.written;
     }
-
     WASM_VECTOR_LEN = offset;
     return ptr;
 }
-
 let cachedInt32Memory0 = null;
-
 function getInt32Memory0() {
     if (cachedInt32Memory0 === null || cachedInt32Memory0.byteLength === 0) {
         cachedInt32Memory0 = new Int32Array(wasm.memory.buffer);
     }
     return cachedInt32Memory0;
 }
-
 function isLikeNone(x) {
     return x === undefined || x === null;
 }
-
 function debugString(val) {
     // primitive types
     const type = typeof val;
     if (type == 'number' || type == 'boolean' || val == null) {
-        return  `${val}`;
+        return `${val}`;
     }
     if (type == 'string') {
         return `"${val}"`;
@@ -130,7 +105,8 @@ function debugString(val) {
         const description = val.description;
         if (description == null) {
             return 'Symbol';
-        } else {
+        }
+        else {
             return `Symbol(${description})`;
         }
     }
@@ -138,7 +114,8 @@ function debugString(val) {
         const name = val.name;
         if (typeof name == 'string' && name.length > 0) {
             return `Function(${name})`;
-        } else {
+        }
+        else {
             return 'Function';
         }
     }
@@ -149,7 +126,7 @@ function debugString(val) {
         if (length > 0) {
             debug += debugString(val[0]);
         }
-        for(let i = 1; i < length; i++) {
+        for (let i = 1; i < length; i++) {
             debug += ', ' + debugString(val[i]);
         }
         debug += ']';
@@ -160,7 +137,8 @@ function debugString(val) {
     let className;
     if (builtInMatches.length > 1) {
         className = builtInMatches[1];
-    } else {
+    }
+    else {
         // Failed to match the standard '[object ClassName]'
         return toString.call(val);
     }
@@ -170,7 +148,8 @@ function debugString(val) {
         // easier than looping through ownProperties of `val`.
         try {
             return 'Object(' + JSON.stringify(val) + ')';
-        } catch (_) {
+        }
+        catch (_) {
             return 'Object';
         }
     }
@@ -181,7 +160,6 @@ function debugString(val) {
     // TODO we could test for more things here, like `Set`s and `Map`s.
     return className;
 }
-
 function makeMutClosure(arg0, arg1, dtor, f) {
     const state = { a: arg0, b: arg1, cnt: 1, dtor };
     const real = (...args) => {
@@ -193,34 +171,31 @@ function makeMutClosure(arg0, arg1, dtor, f) {
         state.a = 0;
         try {
             return f(a, state.b, ...args);
-        } finally {
+        }
+        finally {
             if (--state.cnt === 0) {
                 wasm.__wbindgen_export_2.get(state.dtor)(a, state.b);
-
-            } else {
+            }
+            else {
                 state.a = a;
             }
         }
     };
     real.original = state;
-
     return real;
 }
 function __wbg_adapter_30(arg0, arg1, arg2) {
     wasm.wasm_bindgen__convert__closures__invoke1_mut__h6969f55afe8abf76(arg0, arg1, addHeapObject(arg2));
 }
-
 function _assertClass(instance, klass) {
     if (!(instance instanceof klass)) {
         throw new Error(`expected instance of ${klass.name}`);
     }
     return instance.ptr;
 }
-
 function getArrayU8FromWasm0(ptr, len) {
     return getUint8Memory0().subarray(ptr / 1, ptr / 1 + len);
 }
-
 function passArray8ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 1);
     getUint8Memory0().set(arg, ptr / 1);
@@ -234,7 +209,7 @@ function passArray8ToWasm0(arg, malloc) {
 * @param {string} data
 * @returns {string}
 */
-module.exports.encrypt_with_password = function(password, salt, nonce, data) {
+module.exports.encrypt_with_password = function (password, salt, nonce, data) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         const ptr0 = passStringToWasm0(password, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
@@ -253,22 +228,23 @@ module.exports.encrypt_with_password = function(password, salt, nonce, data) {
         var ptr4 = r0;
         var len4 = r1;
         if (r3) {
-            ptr4 = 0; len4 = 0;
+            ptr4 = 0;
+            len4 = 0;
             throw takeObject(r2);
         }
         return getStringFromWasm0(ptr4, len4);
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
         wasm.__wbindgen_free(ptr4, len4);
     }
 };
-
 /**
 * @param {string} password
 * @param {string} data
 * @returns {string}
 */
-module.exports.decrypt_with_password = function(password, data) {
+module.exports.decrypt_with_password = function (password, data) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         const ptr0 = passStringToWasm0(password, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
@@ -283,23 +259,24 @@ module.exports.decrypt_with_password = function(password, data) {
         var ptr2 = r0;
         var len2 = r1;
         if (r3) {
-            ptr2 = 0; len2 = 0;
+            ptr2 = 0;
+            len2 = 0;
             throw takeObject(r2);
         }
         return getStringFromWasm0(ptr2, len2);
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
         wasm.__wbindgen_free(ptr2, len2);
     }
 };
-
 /**
 * @param {Transaction} tx
 * @param {LinearFee} linear_fee
 * @param {ExUnitPrices} ex_unit_prices
 * @returns {BigNum}
 */
-module.exports.min_fee = function(tx, linear_fee, ex_unit_prices) {
+module.exports.min_fee = function (tx, linear_fee, ex_unit_prices) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         _assertClass(tx, Transaction);
@@ -313,27 +290,26 @@ module.exports.min_fee = function(tx, linear_fee, ex_unit_prices) {
             throw takeObject(r1);
         }
         return BigNum.__wrap(r0);
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 };
-
 /**
 * @param {Uint8Array} bytes
 * @returns {TransactionMetadatum}
 */
-module.exports.encode_arbitrary_bytes_as_metadatum = function(bytes) {
+module.exports.encode_arbitrary_bytes_as_metadatum = function (bytes) {
     const ptr0 = passArray8ToWasm0(bytes, wasm.__wbindgen_malloc);
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.encode_arbitrary_bytes_as_metadatum(ptr0, len0);
     return TransactionMetadatum.__wrap(ret);
 };
-
 /**
 * @param {TransactionMetadatum} metadata
 * @returns {Uint8Array}
 */
-module.exports.decode_arbitrary_bytes_from_metadatum = function(metadata) {
+module.exports.decode_arbitrary_bytes_from_metadatum = function (metadata) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         _assertClass(metadata, TransactionMetadatum);
@@ -348,17 +324,17 @@ module.exports.decode_arbitrary_bytes_from_metadatum = function(metadata) {
         var v0 = getArrayU8FromWasm0(r0, r1).slice();
         wasm.__wbindgen_free(r0, r1 * 1);
         return v0;
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 };
-
 /**
 * @param {string} json
 * @param {number} schema
 * @returns {TransactionMetadatum}
 */
-module.exports.encode_json_str_to_metadatum = function(json, schema) {
+module.exports.encode_json_str_to_metadatum = function (json, schema) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         const ptr0 = passStringToWasm0(json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
@@ -371,17 +347,17 @@ module.exports.encode_json_str_to_metadatum = function(json, schema) {
             throw takeObject(r1);
         }
         return TransactionMetadatum.__wrap(r0);
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 };
-
 /**
 * @param {TransactionMetadatum} metadatum
 * @param {number} schema
 * @returns {string}
 */
-module.exports.decode_metadatum_to_json_str = function(metadatum, schema) {
+module.exports.decode_metadatum_to_json_str = function (metadatum, schema) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         _assertClass(metadatum, TransactionMetadatum);
@@ -393,22 +369,23 @@ module.exports.decode_metadatum_to_json_str = function(metadatum, schema) {
         var ptr0 = r0;
         var len0 = r1;
         if (r3) {
-            ptr0 = 0; len0 = 0;
+            ptr0 = 0;
+            len0 = 0;
             throw takeObject(r2);
         }
         return getStringFromWasm0(ptr0, len0);
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
         wasm.__wbindgen_free(ptr0, len0);
     }
 };
-
 /**
 * @param {string} json
 * @param {number} schema
 * @returns {PlutusData}
 */
-module.exports.encode_json_str_to_plutus_datum = function(json, schema) {
+module.exports.encode_json_str_to_plutus_datum = function (json, schema) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         const ptr0 = passStringToWasm0(json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
@@ -421,17 +398,17 @@ module.exports.encode_json_str_to_plutus_datum = function(json, schema) {
             throw takeObject(r1);
         }
         return PlutusData.__wrap(r0);
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 };
-
 /**
 * @param {PlutusData} datum
 * @param {number} schema
 * @returns {string}
 */
-module.exports.decode_plutus_datum_to_json_str = function(datum, schema) {
+module.exports.decode_plutus_datum_to_json_str = function (datum, schema) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         _assertClass(datum, PlutusData);
@@ -443,32 +420,30 @@ module.exports.decode_plutus_datum_to_json_str = function(datum, schema) {
         var ptr0 = r0;
         var len0 = r1;
         if (r3) {
-            ptr0 = 0; len0 = 0;
+            ptr0 = 0;
+            len0 = 0;
             throw takeObject(r2);
         }
         return getStringFromWasm0(ptr0, len0);
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
         wasm.__wbindgen_free(ptr0, len0);
     }
 };
-
 let cachedUint32Memory0 = null;
-
 function getUint32Memory0() {
     if (cachedUint32Memory0 === null || cachedUint32Memory0.byteLength === 0) {
         cachedUint32Memory0 = new Uint32Array(wasm.memory.buffer);
     }
     return cachedUint32Memory0;
 }
-
 function passArray32ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 4);
     getUint32Memory0().set(arg, ptr / 4);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
 }
-
 function getArrayU32FromWasm0(ptr, len) {
     return getUint32Memory0().subarray(ptr / 4, ptr / 4 + len);
 }
@@ -478,75 +453,69 @@ function getArrayU32FromWasm0(ptr, len) {
 * @param {LegacyDaedalusPrivateKey} key
 * @returns {BootstrapWitness}
 */
-module.exports.make_daedalus_bootstrap_witness = function(tx_body_hash, addr, key) {
+module.exports.make_daedalus_bootstrap_witness = function (tx_body_hash, addr, key) {
     _assertClass(tx_body_hash, TransactionHash);
     _assertClass(addr, ByronAddress);
     _assertClass(key, LegacyDaedalusPrivateKey);
     const ret = wasm.make_daedalus_bootstrap_witness(tx_body_hash.ptr, addr.ptr, key.ptr);
     return BootstrapWitness.__wrap(ret);
 };
-
 /**
 * @param {TransactionHash} tx_body_hash
 * @param {ByronAddress} addr
 * @param {Bip32PrivateKey} key
 * @returns {BootstrapWitness}
 */
-module.exports.make_icarus_bootstrap_witness = function(tx_body_hash, addr, key) {
+module.exports.make_icarus_bootstrap_witness = function (tx_body_hash, addr, key) {
     _assertClass(tx_body_hash, TransactionHash);
     _assertClass(addr, ByronAddress);
     _assertClass(key, Bip32PrivateKey);
     const ret = wasm.make_icarus_bootstrap_witness(tx_body_hash.ptr, addr.ptr, key.ptr);
     return BootstrapWitness.__wrap(ret);
 };
-
 /**
 * @param {TransactionHash} tx_body_hash
 * @param {PrivateKey} sk
 * @returns {Vkeywitness}
 */
-module.exports.make_vkey_witness = function(tx_body_hash, sk) {
+module.exports.make_vkey_witness = function (tx_body_hash, sk) {
     _assertClass(tx_body_hash, TransactionHash);
     _assertClass(sk, PrivateKey);
     const ret = wasm.make_vkey_witness(tx_body_hash.ptr, sk.ptr);
     return Vkeywitness.__wrap(ret);
 };
-
 /**
 * @param {AuxiliaryData} auxiliary_data
 * @returns {AuxiliaryDataHash}
 */
-module.exports.hash_auxiliary_data = function(auxiliary_data) {
+module.exports.hash_auxiliary_data = function (auxiliary_data) {
     _assertClass(auxiliary_data, AuxiliaryData);
     const ret = wasm.hash_auxiliary_data(auxiliary_data.ptr);
     return AuxiliaryDataHash.__wrap(ret);
 };
-
 /**
 * @param {TransactionBody} tx_body
 * @returns {TransactionHash}
 */
-module.exports.hash_transaction = function(tx_body) {
+module.exports.hash_transaction = function (tx_body) {
     _assertClass(tx_body, TransactionBody);
     const ret = wasm.hash_transaction(tx_body.ptr);
     return TransactionHash.__wrap(ret);
 };
-
 /**
 * @param {PlutusData} plutus_data
 * @returns {DataHash}
 */
-module.exports.hash_plutus_data = function(plutus_data) {
+module.exports.hash_plutus_data = function (plutus_data) {
     _assertClass(plutus_data, PlutusData);
     const ret = wasm.hash_plutus_data(plutus_data.ptr);
     return DataHash.__wrap(ret);
 };
-
 /**
 * @param {Uint8Array} data
 * @returns {Uint8Array}
 */
-module.exports.hash_blake2b256 = function(data) {
+module.exports.hash_blake2b256 = function (data) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
@@ -557,16 +526,16 @@ module.exports.hash_blake2b256 = function(data) {
         var v1 = getArrayU8FromWasm0(r0, r1).slice();
         wasm.__wbindgen_free(r0, r1 * 1);
         return v1;
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 };
-
 /**
 * @param {Uint8Array} data
 * @returns {Uint8Array}
 */
-module.exports.hash_blake2b224 = function(data) {
+module.exports.hash_blake2b224 = function (data) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
@@ -577,18 +546,18 @@ module.exports.hash_blake2b224 = function(data) {
         var v1 = getArrayU8FromWasm0(r0, r1).slice();
         wasm.__wbindgen_free(r0, r1 * 1);
         return v1;
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 };
-
 /**
 * @param {Redeemers} redeemers
 * @param {Costmdls} cost_models
 * @param {PlutusList | undefined} datums
 * @returns {ScriptDataHash}
 */
-module.exports.hash_script_data = function(redeemers, cost_models, datums) {
+module.exports.hash_script_data = function (redeemers, cost_models, datums) {
     _assertClass(redeemers, Redeemers);
     _assertClass(cost_models, Costmdls);
     let ptr0 = 0;
@@ -599,14 +568,13 @@ module.exports.hash_script_data = function(redeemers, cost_models, datums) {
     const ret = wasm.hash_script_data(redeemers.ptr, cost_models.ptr, ptr0);
     return ScriptDataHash.__wrap(ret);
 };
-
 /**
 * @param {TransactionBody} txbody
 * @param {BigNum} pool_deposit
 * @param {BigNum} key_deposit
 * @returns {Value}
 */
-module.exports.get_implicit_input = function(txbody, pool_deposit, key_deposit) {
+module.exports.get_implicit_input = function (txbody, pool_deposit, key_deposit) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         _assertClass(txbody, TransactionBody);
@@ -620,18 +588,18 @@ module.exports.get_implicit_input = function(txbody, pool_deposit, key_deposit) 
             throw takeObject(r1);
         }
         return Value.__wrap(r0);
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 };
-
 /**
 * @param {TransactionBody} txbody
 * @param {BigNum} pool_deposit
 * @param {BigNum} key_deposit
 * @returns {BigNum}
 */
-module.exports.get_deposit = function(txbody, pool_deposit, key_deposit) {
+module.exports.get_deposit = function (txbody, pool_deposit, key_deposit) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         _assertClass(txbody, TransactionBody);
@@ -645,17 +613,17 @@ module.exports.get_deposit = function(txbody, pool_deposit, key_deposit) {
             throw takeObject(r1);
         }
         return BigNum.__wrap(r0);
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 };
-
 /**
 * @param {TransactionOutput} output
 * @param {BigNum} coins_per_utxo_byte
 * @returns {BigNum}
 */
-module.exports.min_ada_required = function(output, coins_per_utxo_byte) {
+module.exports.min_ada_required = function (output, coins_per_utxo_byte) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         _assertClass(output, TransactionOutput);
@@ -668,11 +636,11 @@ module.exports.min_ada_required = function(output, coins_per_utxo_byte) {
             throw takeObject(r1);
         }
         return BigNum.__wrap(r0);
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 };
-
 /**
 * Receives a script JSON string
 * and returns a NativeScript.
@@ -687,7 +655,7 @@ module.exports.min_ada_required = function(output, coins_per_utxo_byte) {
 * @param {number} schema
 * @returns {NativeScript}
 */
-module.exports.encode_json_str_to_native_script = function(json, self_xpub, schema) {
+module.exports.encode_json_str_to_native_script = function (json, self_xpub, schema) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         const ptr0 = passStringToWasm0(json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
@@ -702,17 +670,17 @@ module.exports.encode_json_str_to_native_script = function(json, self_xpub, sche
             throw takeObject(r1);
         }
         return NativeScript.__wrap(r0);
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 };
-
 /**
 * @param {PlutusList} params
 * @param {PlutusScript} plutus_script
 * @returns {PlutusScript}
 */
-module.exports.apply_params_to_plutus_script = function(params, plutus_script) {
+module.exports.apply_params_to_plutus_script = function (params, plutus_script) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         _assertClass(params, PlutusList);
@@ -726,52 +694,52 @@ module.exports.apply_params_to_plutus_script = function(params, plutus_script) {
             throw takeObject(r1);
         }
         return PlutusScript.__wrap(r0);
-    } finally {
+    }
+    finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
 };
-
 function handleError(f, args) {
     try {
         return f.apply(this, args);
-    } catch (e) {
+    }
+    catch (e) {
         wasm.__wbindgen_exn_store(addHeapObject(e));
     }
 }
 function __wbg_adapter_1680(arg0, arg1, arg2, arg3) {
     wasm.wasm_bindgen__convert__closures__invoke2_mut__h74be858885f6b6fa(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
-
 /**
 */
-module.exports.StakeCredKind = Object.freeze({ Key:0,"0":"Key",Script:1,"1":"Script", });
+module.exports.StakeCredKind = Object.freeze({ Key: 0, "0": "Key", Script: 1, "1": "Script", });
 /**
 */
-module.exports.GovernanceActionKind = Object.freeze({ ParameterChangeAction:0,"0":"ParameterChangeAction",HardForkInitiationAction:1,"1":"HardForkInitiationAction",TreasuryWithdrawalsAction:2,"2":"TreasuryWithdrawalsAction",NoConfidence:3,"3":"NoConfidence",NewCommittee:4,"4":"NewCommittee",NewConstitution:5,"5":"NewConstitution",InfoAction:6,"6":"InfoAction", });
+module.exports.GovernanceActionKind = Object.freeze({ ParameterChangeAction: 0, "0": "ParameterChangeAction", HardForkInitiationAction: 1, "1": "HardForkInitiationAction", TreasuryWithdrawalsAction: 2, "2": "TreasuryWithdrawalsAction", NoConfidence: 3, "3": "NoConfidence", NewCommittee: 4, "4": "NewCommittee", NewConstitution: 5, "5": "NewConstitution", InfoAction: 6, "6": "InfoAction", });
 /**
 */
-module.exports.VoterKind = Object.freeze({ CommitteeHotKeyHash:0,"0":"CommitteeHotKeyHash",CommitteeHotScriptHash:1,"1":"CommitteeHotScriptHash",DrepKeyHash:2,"2":"DrepKeyHash",DrepScriptHash:3,"3":"DrepScriptHash",StakingPoolKeyHash:4,"4":"StakingPoolKeyHash", });
+module.exports.VoterKind = Object.freeze({ CommitteeHotKeyHash: 0, "0": "CommitteeHotKeyHash", CommitteeHotScriptHash: 1, "1": "CommitteeHotScriptHash", DrepKeyHash: 2, "2": "DrepKeyHash", DrepScriptHash: 3, "3": "DrepScriptHash", StakingPoolKeyHash: 4, "4": "StakingPoolKeyHash", });
 /**
 */
-module.exports.VoteKind = Object.freeze({ No:0,"0":"No",Yes:1,"1":"Yes",Abstain:2,"2":"Abstain", });
+module.exports.VoteKind = Object.freeze({ No: 0, "0": "No", Yes: 1, "1": "Yes", Abstain: 2, "2": "Abstain", });
 /**
 */
-module.exports.DrepKind = Object.freeze({ KeyHash:0,"0":"KeyHash",ScriptHash:1,"1":"ScriptHash",Abstain:2,"2":"Abstain",NoConfidence:3,"3":"NoConfidence", });
+module.exports.DrepKind = Object.freeze({ KeyHash: 0, "0": "KeyHash", ScriptHash: 1, "1": "ScriptHash", Abstain: 2, "2": "Abstain", NoConfidence: 3, "3": "NoConfidence", });
 /**
 */
-module.exports.TransactionMetadatumKind = Object.freeze({ MetadataMap:0,"0":"MetadataMap",MetadataList:1,"1":"MetadataList",Int:2,"2":"Int",Bytes:3,"3":"Bytes",Text:4,"4":"Text", });
+module.exports.TransactionMetadatumKind = Object.freeze({ MetadataMap: 0, "0": "MetadataMap", MetadataList: 1, "1": "MetadataList", Int: 2, "2": "Int", Bytes: 3, "3": "Bytes", Text: 4, "4": "Text", });
 /**
 */
-module.exports.MetadataJsonSchema = Object.freeze({ NoConversions:0,"0":"NoConversions",BasicConversions:1,"1":"BasicConversions",DetailedSchema:2,"2":"DetailedSchema", });
+module.exports.MetadataJsonSchema = Object.freeze({ NoConversions: 0, "0": "NoConversions", BasicConversions: 1, "1": "BasicConversions", DetailedSchema: 2, "2": "DetailedSchema", });
 /**
 */
-module.exports.LanguageKind = Object.freeze({ PlutusV1:0,"0":"PlutusV1",PlutusV2:1,"1":"PlutusV2",PlutusV3:2,"2":"PlutusV3", });
+module.exports.LanguageKind = Object.freeze({ PlutusV1: 0, "0": "PlutusV1", PlutusV2: 1, "1": "PlutusV2", PlutusV3: 2, "2": "PlutusV3", });
 /**
 */
-module.exports.PlutusDataKind = Object.freeze({ ConstrPlutusData:0,"0":"ConstrPlutusData",Map:1,"1":"Map",List:2,"2":"List",Integer:3,"3":"Integer",Bytes:4,"4":"Bytes", });
+module.exports.PlutusDataKind = Object.freeze({ ConstrPlutusData: 0, "0": "ConstrPlutusData", Map: 1, "1": "Map", List: 2, "2": "List", Integer: 3, "3": "Integer", Bytes: 4, "4": "Bytes", });
 /**
 */
-module.exports.RedeemerTagKind = Object.freeze({ Spend:0,"0":"Spend",Mint:1,"1":"Mint",Cert:2,"2":"Cert",Reward:3,"3":"Reward",Drep:4,"4":"Drep", });
+module.exports.RedeemerTagKind = Object.freeze({ Spend: 0, "0": "Spend", Mint: 1, "1": "Mint", Cert: 2, "2": "Cert", Reward: 3, "3": "Reward", Drep: 4, "4": "Drep", });
 /**
 * JSON <-> PlutusData conversion schemas.
 * Follows ScriptDataJsonSchema in cardano-cli defined at:
@@ -784,51 +752,52 @@ module.exports.RedeemerTagKind = Object.freeze({ Spend:0,"0":"Spend",Mint:1,"1":
 *      on either side when tested so proceed with caution
 */
 module.exports.PlutusDatumSchema = Object.freeze({
-/**
-* ScriptDataJsonNoSchema in cardano-node.
-*
-* This is the format used by --script-data-value in cardano-cli
-* This tries to accept most JSON but does not support the full spectrum of Plutus datums.
-* From JSON:
-* * null/true/false/floats NOT supported
-* * strings starting with 0x are treated as hex bytes. All other strings are encoded as their utf8 bytes.
-* To JSON:
-* * ConstrPlutusData not supported in ANY FORM (neither keys nor values)
-* * Lists not supported in keys
-* * Maps not supported in keys
-*/
-BasicConversions:0,"0":"BasicConversions",
-/**
-* ScriptDataJsonDetailedSchema in cardano-node.
-*
-* This is the format used by --script-data-file in cardano-cli
-* This covers almost all (only minor exceptions) Plutus datums, but the JSON must conform to a strict schema.
-* The schema specifies that ALL keys and ALL values must be contained in a JSON map with 2 cases:
-* 1. For ConstrPlutusData there must be two fields "constructor" contianing a number and "fields" containing its fields
-*    e.g. { "constructor": 2, "fields": [{"int": 2}, {"list": [{"bytes": "CAFEF00D"}]}]}
-* 2. For all other cases there must be only one field named "int", "bytes", "list" or "map"
-*    Integer's value is a JSON number e.g. {"int": 100}
-*    Bytes' value is a hex string representing the bytes WITHOUT any prefix e.g. {"bytes": "CAFEF00D"}
-*    Lists' value is a JSON list of its elements encoded via the same schema e.g. {"list": [{"bytes": "CAFEF00D"}]}
-*    Maps' value is a JSON list of objects, one for each key-value pair in the map, with keys "k" and "v"
-*          respectively with their values being the plutus datum encoded via this same schema
-*          e.g. {"map": [
-*              {"k": {"int": 2}, "v": {"int": 5}},
-*              {"k": {"map": [{"k": {"list": [{"int": 1}]}, "v": {"bytes": "FF03"}}]}, "v": {"list": []}}
-*          ]}
-* From JSON:
-* * null/true/false/floats NOT supported
-* * the JSON must conform to a very specific schema
-* To JSON:
-* * all Plutus datums should be fully supported outside of the integer range limitations outlined above.
-*/
-DetailedSchema:1,"1":"DetailedSchema", });
-/**
-*/
-module.exports.ScriptKind = Object.freeze({ NativeScript:0,"0":"NativeScript",PlutusScriptV1:1,"1":"PlutusScriptV1",PlutusScriptV2:2,"2":"PlutusScriptV2",PlutusScriptV3:3,"3":"PlutusScriptV3", });
+    /**
+    * ScriptDataJsonNoSchema in cardano-node.
+    *
+    * This is the format used by --script-data-value in cardano-cli
+    * This tries to accept most JSON but does not support the full spectrum of Plutus datums.
+    * From JSON:
+    * * null/true/false/floats NOT supported
+    * * strings starting with 0x are treated as hex bytes. All other strings are encoded as their utf8 bytes.
+    * To JSON:
+    * * ConstrPlutusData not supported in ANY FORM (neither keys nor values)
+    * * Lists not supported in keys
+    * * Maps not supported in keys
+    */
+    BasicConversions: 0, "0": "BasicConversions",
+    /**
+    * ScriptDataJsonDetailedSchema in cardano-node.
+    *
+    * This is the format used by --script-data-file in cardano-cli
+    * This covers almost all (only minor exceptions) Plutus datums, but the JSON must conform to a strict schema.
+    * The schema specifies that ALL keys and ALL values must be contained in a JSON map with 2 cases:
+    * 1. For ConstrPlutusData there must be two fields "constructor" contianing a number and "fields" containing its fields
+    *    e.g. { "constructor": 2, "fields": [{"int": 2}, {"list": [{"bytes": "CAFEF00D"}]}]}
+    * 2. For all other cases there must be only one field named "int", "bytes", "list" or "map"
+    *    Integer's value is a JSON number e.g. {"int": 100}
+    *    Bytes' value is a hex string representing the bytes WITHOUT any prefix e.g. {"bytes": "CAFEF00D"}
+    *    Lists' value is a JSON list of its elements encoded via the same schema e.g. {"list": [{"bytes": "CAFEF00D"}]}
+    *    Maps' value is a JSON list of objects, one for each key-value pair in the map, with keys "k" and "v"
+    *          respectively with their values being the plutus datum encoded via this same schema
+    *          e.g. {"map": [
+    *              {"k": {"int": 2}, "v": {"int": 5}},
+    *              {"k": {"map": [{"k": {"list": [{"int": 1}]}, "v": {"bytes": "FF03"}}]}, "v": {"list": []}}
+    *          ]}
+    * From JSON:
+    * * null/true/false/floats NOT supported
+    * * the JSON must conform to a very specific schema
+    * To JSON:
+    * * all Plutus datums should be fully supported outside of the integer range limitations outlined above.
+    */
+    DetailedSchema: 1, "1": "DetailedSchema",
+});
 /**
 */
-module.exports.DatumKind = Object.freeze({ Hash:0,"0":"Hash",Data:1,"1":"Data", });
+module.exports.ScriptKind = Object.freeze({ NativeScript: 0, "0": "NativeScript", PlutusScriptV1: 1, "1": "PlutusScriptV1", PlutusScriptV2: 2, "2": "PlutusScriptV2", PlutusScriptV3: 3, "3": "PlutusScriptV3", });
+/**
+*/
+module.exports.DatumKind = Object.freeze({ Hash: 0, "0": "Hash", Data: 1, "1": "Data", });
 /**
 * Each new language uses a different namespace for hashing its script
 * This is because you could have a language where the same bytes have different semantics
@@ -836,50 +805,45 @@ module.exports.DatumKind = Object.freeze({ Hash:0,"0":"Hash",Data:1,"1":"Data", 
 * Note that the enum value here is different than the enum value for deciding the cost model of a script
 * https://github.com/input-output-hk/cardano-ledger/blob/9c3b4737b13b30f71529e76c5330f403165e28a6/eras/alonzo/impl/src/Cardano/Ledger/Alonzo.hs#L127
 */
-module.exports.ScriptHashNamespace = Object.freeze({ NativeScript:0,"0":"NativeScript",PlutusV1:1,"1":"PlutusV1",PlutusV2:2,"2":"PlutusV2", });
+module.exports.ScriptHashNamespace = Object.freeze({ NativeScript: 0, "0": "NativeScript", PlutusV1: 1, "1": "PlutusV1", PlutusV2: 2, "2": "PlutusV2", });
 /**
 * Used to choose the schema for a script JSON string
 */
-module.exports.ScriptSchema = Object.freeze({ Wallet:0,"0":"Wallet",Node:1,"1":"Node", });
+module.exports.ScriptSchema = Object.freeze({ Wallet: 0, "0": "Wallet", Node: 1, "1": "Node", });
 /**
 */
-module.exports.ScriptWitnessKind = Object.freeze({ NativeWitness:0,"0":"NativeWitness",PlutusWitness:1,"1":"PlutusWitness", });
+module.exports.ScriptWitnessKind = Object.freeze({ NativeWitness: 0, "0": "NativeWitness", PlutusWitness: 1, "1": "PlutusWitness", });
 /**
 */
-module.exports.CertificateKind = Object.freeze({ StakeRegistration:0,"0":"StakeRegistration",StakeDeregistration:1,"1":"StakeDeregistration",StakeDelegation:2,"2":"StakeDelegation",PoolRegistration:3,"3":"PoolRegistration",PoolRetirement:4,"4":"PoolRetirement",GenesisKeyDelegation:5,"5":"GenesisKeyDelegation",MoveInstantaneousRewardsCert:6,"6":"MoveInstantaneousRewardsCert",RegCert:7,"7":"RegCert",UnregCert:8,"8":"UnregCert",VoteDelegCert:9,"9":"VoteDelegCert",StakeVoteDelegCert:10,"10":"StakeVoteDelegCert",StakeRegDelegCert:11,"11":"StakeRegDelegCert",VoteRegDelegCert:12,"12":"VoteRegDelegCert",StakeVoteRegDelegCert:13,"13":"StakeVoteRegDelegCert",RegCommitteeHotKeyCert:14,"14":"RegCommitteeHotKeyCert",UnregCommitteeHotKeyCert:15,"15":"UnregCommitteeHotKeyCert",RegDrepCert:16,"16":"RegDrepCert",UnregDrepCert:17,"17":"UnregDrepCert", });
+module.exports.CertificateKind = Object.freeze({ StakeRegistration: 0, "0": "StakeRegistration", StakeDeregistration: 1, "1": "StakeDeregistration", StakeDelegation: 2, "2": "StakeDelegation", PoolRegistration: 3, "3": "PoolRegistration", PoolRetirement: 4, "4": "PoolRetirement", GenesisKeyDelegation: 5, "5": "GenesisKeyDelegation", MoveInstantaneousRewardsCert: 6, "6": "MoveInstantaneousRewardsCert", RegCert: 7, "7": "RegCert", UnregCert: 8, "8": "UnregCert", VoteDelegCert: 9, "9": "VoteDelegCert", StakeVoteDelegCert: 10, "10": "StakeVoteDelegCert", StakeRegDelegCert: 11, "11": "StakeRegDelegCert", VoteRegDelegCert: 12, "12": "VoteRegDelegCert", StakeVoteRegDelegCert: 13, "13": "StakeVoteRegDelegCert", RegCommitteeHotKeyCert: 14, "14": "RegCommitteeHotKeyCert", UnregCommitteeHotKeyCert: 15, "15": "UnregCommitteeHotKeyCert", RegDrepCert: 16, "16": "RegDrepCert", UnregDrepCert: 17, "17": "UnregDrepCert", });
 /**
 */
-module.exports.MIRPot = Object.freeze({ Reserves:0,"0":"Reserves",Treasury:1,"1":"Treasury", });
+module.exports.MIRPot = Object.freeze({ Reserves: 0, "0": "Reserves", Treasury: 1, "1": "Treasury", });
 /**
 */
-module.exports.MIRKind = Object.freeze({ ToOtherPot:0,"0":"ToOtherPot",ToStakeCredentials:1,"1":"ToStakeCredentials", });
+module.exports.MIRKind = Object.freeze({ ToOtherPot: 0, "0": "ToOtherPot", ToStakeCredentials: 1, "1": "ToStakeCredentials", });
 /**
 */
-module.exports.RelayKind = Object.freeze({ SingleHostAddr:0,"0":"SingleHostAddr",SingleHostName:1,"1":"SingleHostName",MultiHostName:2,"2":"MultiHostName", });
+module.exports.RelayKind = Object.freeze({ SingleHostAddr: 0, "0": "SingleHostAddr", SingleHostName: 1, "1": "SingleHostName", MultiHostName: 2, "2": "MultiHostName", });
 /**
 */
-module.exports.NativeScriptKind = Object.freeze({ ScriptPubkey:0,"0":"ScriptPubkey",ScriptAll:1,"1":"ScriptAll",ScriptAny:2,"2":"ScriptAny",ScriptNOfK:3,"3":"ScriptNOfK",TimelockStart:4,"4":"TimelockStart",TimelockExpiry:5,"5":"TimelockExpiry", });
+module.exports.NativeScriptKind = Object.freeze({ ScriptPubkey: 0, "0": "ScriptPubkey", ScriptAll: 1, "1": "ScriptAll", ScriptAny: 2, "2": "ScriptAny", ScriptNOfK: 3, "3": "ScriptNOfK", TimelockStart: 4, "4": "TimelockStart", TimelockExpiry: 5, "5": "TimelockExpiry", });
 /**
 */
-module.exports.NetworkIdKind = Object.freeze({ Testnet:0,"0":"Testnet",Mainnet:1,"1":"Mainnet", });
+module.exports.NetworkIdKind = Object.freeze({ Testnet: 0, "0": "Testnet", Mainnet: 1, "1": "Mainnet", });
 /**
 */
 class Address {
-
     static __wrap(ptr) {
         const obj = Object.create(Address.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_address_free(ptr);
@@ -901,7 +865,8 @@ class Address {
                 throw takeObject(r1);
             }
             return Address.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -919,11 +884,13 @@ class Address {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -942,7 +909,8 @@ class Address {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -963,7 +931,8 @@ class Address {
                 throw takeObject(r1);
             }
             return Address.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -979,7 +948,8 @@ class Address {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1000,11 +970,13 @@ class Address {
             var ptr1 = r0;
             var len1 = r1;
             if (r3) {
-                ptr1 = 0; len1 = 0;
+                ptr1 = 0;
+                len1 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr1, len1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr1, len1);
         }
@@ -1026,7 +998,8 @@ class Address {
                 throw takeObject(r1);
             }
             return Address.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1044,7 +1017,8 @@ class Address {
                 throw takeObject(r1);
             }
             return r0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1088,21 +1062,16 @@ module.exports.Address = Address;
 /**
 */
 class Anchor {
-
     static __wrap(ptr) {
         const obj = Object.create(Anchor.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_anchor_free(ptr);
@@ -1119,7 +1088,8 @@ class Anchor {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1140,7 +1110,8 @@ class Anchor {
                 throw takeObject(r1);
             }
             return Anchor.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1158,11 +1129,13 @@ class Anchor {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -1181,7 +1154,8 @@ class Anchor {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1202,7 +1176,8 @@ class Anchor {
                 throw takeObject(r1);
             }
             return Anchor.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1236,21 +1211,16 @@ module.exports.Anchor = Anchor;
 /**
 */
 class AssetName {
-
     static __wrap(ptr) {
         const obj = Object.create(AssetName.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_assetname_free(ptr);
@@ -1267,7 +1237,8 @@ class AssetName {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1288,7 +1259,8 @@ class AssetName {
                 throw takeObject(r1);
             }
             return AssetName.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1306,11 +1278,13 @@ class AssetName {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -1329,7 +1303,8 @@ class AssetName {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1350,7 +1325,8 @@ class AssetName {
                 throw takeObject(r1);
             }
             return AssetName.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1371,7 +1347,8 @@ class AssetName {
                 throw takeObject(r1);
             }
             return AssetName.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1387,7 +1364,8 @@ class AssetName {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1396,21 +1374,16 @@ module.exports.AssetName = AssetName;
 /**
 */
 class AssetNames {
-
     static __wrap(ptr) {
         const obj = Object.create(AssetNames.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_assetnames_free(ptr);
@@ -1427,7 +1400,8 @@ class AssetNames {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1448,7 +1422,8 @@ class AssetNames {
                 throw takeObject(r1);
             }
             return AssetNames.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1466,11 +1441,13 @@ class AssetNames {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -1489,7 +1466,8 @@ class AssetNames {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1510,7 +1488,8 @@ class AssetNames {
                 throw takeObject(r1);
             }
             return AssetNames.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1548,21 +1527,16 @@ module.exports.AssetNames = AssetNames;
 /**
 */
 class Assets {
-
     static __wrap(ptr) {
         const obj = Object.create(Assets.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_assets_free(ptr);
@@ -1579,7 +1553,8 @@ class Assets {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1600,7 +1575,8 @@ class Assets {
                 throw takeObject(r1);
             }
             return Assets.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1618,11 +1594,13 @@ class Assets {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -1641,7 +1619,8 @@ class Assets {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1662,7 +1641,8 @@ class Assets {
                 throw takeObject(r1);
             }
             return Assets.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1712,21 +1692,16 @@ module.exports.Assets = Assets;
 /**
 */
 class AuxiliaryData {
-
     static __wrap(ptr) {
         const obj = Object.create(AuxiliaryData.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_auxiliarydata_free(ptr);
@@ -1743,7 +1718,8 @@ class AuxiliaryData {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1764,7 +1740,8 @@ class AuxiliaryData {
                 throw takeObject(r1);
             }
             return AuxiliaryData.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1782,11 +1759,13 @@ class AuxiliaryData {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -1805,7 +1784,8 @@ class AuxiliaryData {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1826,7 +1806,8 @@ class AuxiliaryData {
                 throw takeObject(r1);
             }
             return AuxiliaryData.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1912,21 +1893,16 @@ module.exports.AuxiliaryData = AuxiliaryData;
 /**
 */
 class AuxiliaryDataHash {
-
     static __wrap(ptr) {
         const obj = Object.create(AuxiliaryDataHash.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_auxiliarydatahash_free(ptr);
@@ -1948,7 +1924,8 @@ class AuxiliaryDataHash {
                 throw takeObject(r1);
             }
             return AuxiliaryDataHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1964,7 +1941,8 @@ class AuxiliaryDataHash {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -1985,11 +1963,13 @@ class AuxiliaryDataHash {
             var ptr1 = r0;
             var len1 = r1;
             if (r3) {
-                ptr1 = 0; len1 = 0;
+                ptr1 = 0;
+                len1 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr1, len1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr1, len1);
         }
@@ -2011,7 +1991,8 @@ class AuxiliaryDataHash {
                 throw takeObject(r1);
             }
             return AuxiliaryDataHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2025,7 +2006,8 @@ class AuxiliaryDataHash {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -2047,7 +2029,8 @@ class AuxiliaryDataHash {
                 throw takeObject(r1);
             }
             return AuxiliaryDataHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2056,21 +2039,16 @@ module.exports.AuxiliaryDataHash = AuxiliaryDataHash;
 /**
 */
 class AuxiliaryDataSet {
-
     static __wrap(ptr) {
         const obj = Object.create(AuxiliaryDataSet.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_auxiliarydataset_free(ptr);
@@ -2121,21 +2099,16 @@ module.exports.AuxiliaryDataSet = AuxiliaryDataSet;
 /**
 */
 class BaseAddress {
-
     static __wrap(ptr) {
         const obj = Object.create(BaseAddress.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_baseaddress_free(ptr);
@@ -2187,21 +2160,16 @@ module.exports.BaseAddress = BaseAddress;
 /**
 */
 class BigInt {
-
     static __wrap(ptr) {
         const obj = Object.create(BigInt.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_bigint_free(ptr);
@@ -2218,7 +2186,8 @@ class BigInt {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2239,7 +2208,8 @@ class BigInt {
                 throw takeObject(r1);
             }
             return BigInt.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2274,7 +2244,8 @@ class BigInt {
                 throw takeObject(r1);
             }
             return BigInt.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2288,7 +2259,8 @@ class BigInt {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -2298,21 +2270,16 @@ module.exports.BigInt = BigInt;
 /**
 */
 class BigNum {
-
     static __wrap(ptr) {
         const obj = Object.create(BigNum.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_bignum_free(ptr);
@@ -2329,7 +2296,8 @@ class BigNum {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2350,7 +2318,8 @@ class BigNum {
                 throw takeObject(r1);
             }
             return BigNum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2371,7 +2340,8 @@ class BigNum {
                 throw takeObject(r1);
             }
             return BigNum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2385,7 +2355,8 @@ class BigNum {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -2420,7 +2391,8 @@ class BigNum {
                 throw takeObject(r1);
             }
             return BigNum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2440,7 +2412,8 @@ class BigNum {
                 throw takeObject(r1);
             }
             return BigNum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2460,7 +2433,8 @@ class BigNum {
                 throw takeObject(r1);
             }
             return BigNum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2480,7 +2454,8 @@ class BigNum {
                 throw takeObject(r1);
             }
             return BigNum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2500,7 +2475,8 @@ class BigNum {
                 throw takeObject(r1);
             }
             return BigNum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2528,21 +2504,16 @@ module.exports.BigNum = BigNum;
 /**
 */
 class Bip32PrivateKey {
-
     static __wrap(ptr) {
         const obj = Object.create(Bip32PrivateKey.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_bip32privatekey_free(ptr);
@@ -2598,7 +2569,8 @@ class Bip32PrivateKey {
                 throw takeObject(r1);
             }
             return Bip32PrivateKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2615,7 +2587,8 @@ class Bip32PrivateKey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2633,7 +2606,8 @@ class Bip32PrivateKey {
                 throw takeObject(r1);
             }
             return Bip32PrivateKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2668,7 +2642,8 @@ class Bip32PrivateKey {
                 throw takeObject(r1);
             }
             return Bip32PrivateKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2684,7 +2659,8 @@ class Bip32PrivateKey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2705,7 +2681,8 @@ class Bip32PrivateKey {
                 throw takeObject(r1);
             }
             return Bip32PrivateKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2719,7 +2696,8 @@ class Bip32PrivateKey {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -2749,7 +2727,8 @@ class Bip32PrivateKey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2758,21 +2737,16 @@ module.exports.Bip32PrivateKey = Bip32PrivateKey;
 /**
 */
 class Bip32PublicKey {
-
     static __wrap(ptr) {
         const obj = Object.create(Bip32PublicKey.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_bip32publickey_free(ptr);
@@ -2815,7 +2789,8 @@ class Bip32PublicKey {
                 throw takeObject(r1);
             }
             return Bip32PublicKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2843,7 +2818,8 @@ class Bip32PublicKey {
                 throw takeObject(r1);
             }
             return Bip32PublicKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2859,7 +2835,8 @@ class Bip32PublicKey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2880,7 +2857,8 @@ class Bip32PublicKey {
                 throw takeObject(r1);
             }
             return Bip32PublicKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2894,7 +2872,8 @@ class Bip32PublicKey {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -2911,7 +2890,8 @@ class Bip32PublicKey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2920,21 +2900,16 @@ module.exports.Bip32PublicKey = Bip32PublicKey;
 /**
 */
 class Block {
-
     static __wrap(ptr) {
         const obj = Object.create(Block.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_block_free(ptr);
@@ -2951,7 +2926,8 @@ class Block {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2972,7 +2948,8 @@ class Block {
                 throw takeObject(r1);
             }
             return Block.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -2990,11 +2967,13 @@ class Block {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -3013,7 +2992,8 @@ class Block {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3034,7 +3014,8 @@ class Block {
                 throw takeObject(r1);
             }
             return Block.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3095,21 +3076,16 @@ module.exports.Block = Block;
 /**
 */
 class BlockHash {
-
     static __wrap(ptr) {
         const obj = Object.create(BlockHash.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_blockhash_free(ptr);
@@ -3131,7 +3107,8 @@ class BlockHash {
                 throw takeObject(r1);
             }
             return BlockHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3147,7 +3124,8 @@ class BlockHash {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3168,11 +3146,13 @@ class BlockHash {
             var ptr1 = r0;
             var len1 = r1;
             if (r3) {
-                ptr1 = 0; len1 = 0;
+                ptr1 = 0;
+                len1 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr1, len1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr1, len1);
         }
@@ -3194,7 +3174,8 @@ class BlockHash {
                 throw takeObject(r1);
             }
             return BlockHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3208,7 +3189,8 @@ class BlockHash {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -3230,7 +3212,8 @@ class BlockHash {
                 throw takeObject(r1);
             }
             return BlockHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3239,21 +3222,16 @@ module.exports.BlockHash = BlockHash;
 /**
 */
 class Blockfrost {
-
     static __wrap(ptr) {
         const obj = Object.create(Blockfrost.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_blockfrost_free(ptr);
@@ -3281,7 +3259,8 @@ class Blockfrost {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -3296,7 +3275,8 @@ class Blockfrost {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -3306,21 +3286,16 @@ module.exports.Blockfrost = Blockfrost;
 /**
 */
 class BootstrapWitness {
-
     static __wrap(ptr) {
         const obj = Object.create(BootstrapWitness.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_bootstrapwitness_free(ptr);
@@ -3337,7 +3312,8 @@ class BootstrapWitness {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3358,7 +3334,8 @@ class BootstrapWitness {
                 throw takeObject(r1);
             }
             return BootstrapWitness.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3376,11 +3353,13 @@ class BootstrapWitness {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -3399,7 +3378,8 @@ class BootstrapWitness {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3420,7 +3400,8 @@ class BootstrapWitness {
                 throw takeObject(r1);
             }
             return BootstrapWitness.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3450,7 +3431,8 @@ class BootstrapWitness {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3466,7 +3448,8 @@ class BootstrapWitness {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3492,21 +3475,16 @@ module.exports.BootstrapWitness = BootstrapWitness;
 /**
 */
 class BootstrapWitnesses {
-
     static __wrap(ptr) {
         const obj = Object.create(BootstrapWitnesses.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_bootstrapwitnesses_free(ptr);
@@ -3545,21 +3523,16 @@ module.exports.BootstrapWitnesses = BootstrapWitnesses;
 /**
 */
 class ByronAddress {
-
     static __wrap(ptr) {
         const obj = Object.create(ByronAddress.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_byronaddress_free(ptr);
@@ -3574,7 +3547,8 @@ class ByronAddress {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -3591,7 +3565,8 @@ class ByronAddress {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3612,7 +3587,8 @@ class ByronAddress {
                 throw takeObject(r1);
             }
             return ByronAddress.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3637,7 +3613,8 @@ class ByronAddress {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3655,7 +3632,8 @@ class ByronAddress {
                 throw takeObject(r1);
             }
             return r0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3676,7 +3654,8 @@ class ByronAddress {
                 throw takeObject(r1);
             }
             return ByronAddress.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3721,21 +3700,16 @@ module.exports.ByronAddress = ByronAddress;
 /**
 */
 class Certificate {
-
     static __wrap(ptr) {
         const obj = Object.create(Certificate.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_certificate_free(ptr);
@@ -3752,7 +3726,8 @@ class Certificate {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3773,7 +3748,8 @@ class Certificate {
                 throw takeObject(r1);
             }
             return Certificate.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3791,11 +3767,13 @@ class Certificate {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -3814,7 +3792,8 @@ class Certificate {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -3835,7 +3814,8 @@ class Certificate {
                 throw takeObject(r1);
             }
             return Certificate.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4040,21 +4020,16 @@ module.exports.Certificate = Certificate;
 /**
 */
 class Certificates {
-
     static __wrap(ptr) {
         const obj = Object.create(Certificates.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_certificates_free(ptr);
@@ -4071,7 +4046,8 @@ class Certificates {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4092,7 +4068,8 @@ class Certificates {
                 throw takeObject(r1);
             }
             return Certificates.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4110,11 +4087,13 @@ class Certificates {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -4133,7 +4112,8 @@ class Certificates {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4154,7 +4134,8 @@ class Certificates {
                 throw takeObject(r1);
             }
             return Certificates.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4192,21 +4173,16 @@ module.exports.Certificates = Certificates;
 /**
 */
 class ConstrPlutusData {
-
     static __wrap(ptr) {
         const obj = Object.create(ConstrPlutusData.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_constrplutusdata_free(ptr);
@@ -4223,7 +4199,8 @@ class ConstrPlutusData {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4244,7 +4221,8 @@ class ConstrPlutusData {
                 throw takeObject(r1);
             }
             return ConstrPlutusData.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4278,21 +4256,16 @@ module.exports.ConstrPlutusData = ConstrPlutusData;
 /**
 */
 class CostModel {
-
     static __wrap(ptr) {
         const obj = Object.create(CostModel.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_costmodel_free(ptr);
@@ -4309,7 +4282,8 @@ class CostModel {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4330,7 +4304,8 @@ class CostModel {
                 throw takeObject(r1);
             }
             return CostModel.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4372,7 +4347,8 @@ class CostModel {
                 throw takeObject(r1);
             }
             return Int.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4391,7 +4367,8 @@ class CostModel {
                 throw takeObject(r1);
             }
             return Int.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4407,21 +4384,16 @@ module.exports.CostModel = CostModel;
 /**
 */
 class Costmdls {
-
     static __wrap(ptr) {
         const obj = Object.create(Costmdls.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_costmdls_free(ptr);
@@ -4438,7 +4410,8 @@ class Costmdls {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4459,7 +4432,8 @@ class Costmdls {
                 throw takeObject(r1);
             }
             return Costmdls.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4509,21 +4483,16 @@ module.exports.Costmdls = Costmdls;
 /**
 */
 class DNSRecordAorAAAA {
-
     static __wrap(ptr) {
         const obj = Object.create(DNSRecordAorAAAA.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_dnsrecordaoraaaa_free(ptr);
@@ -4540,7 +4509,8 @@ class DNSRecordAorAAAA {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4561,7 +4531,8 @@ class DNSRecordAorAAAA {
                 throw takeObject(r1);
             }
             return DNSRecordAorAAAA.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4582,7 +4553,8 @@ class DNSRecordAorAAAA {
                 throw takeObject(r1);
             }
             return DNSRecordAorAAAA.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4596,7 +4568,8 @@ class DNSRecordAorAAAA {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -4606,21 +4579,16 @@ module.exports.DNSRecordAorAAAA = DNSRecordAorAAAA;
 /**
 */
 class DNSRecordSRV {
-
     static __wrap(ptr) {
         const obj = Object.create(DNSRecordSRV.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_dnsrecordsrv_free(ptr);
@@ -4637,7 +4605,8 @@ class DNSRecordSRV {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4658,7 +4627,8 @@ class DNSRecordSRV {
                 throw takeObject(r1);
             }
             return DNSRecordSRV.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4679,7 +4649,8 @@ class DNSRecordSRV {
                 throw takeObject(r1);
             }
             return DNSRecordSRV.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4693,7 +4664,8 @@ class DNSRecordSRV {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -4703,21 +4675,16 @@ module.exports.DNSRecordSRV = DNSRecordSRV;
 /**
 */
 class Data {
-
     static __wrap(ptr) {
         const obj = Object.create(Data.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_data_free(ptr);
@@ -4734,7 +4701,8 @@ class Data {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4755,7 +4723,8 @@ class Data {
                 throw takeObject(r1);
             }
             return Data.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4773,11 +4742,13 @@ class Data {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -4796,7 +4767,8 @@ class Data {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4817,7 +4789,8 @@ class Data {
                 throw takeObject(r1);
             }
             return Data.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4842,21 +4815,16 @@ module.exports.Data = Data;
 /**
 */
 class DataHash {
-
     static __wrap(ptr) {
         const obj = Object.create(DataHash.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_datahash_free(ptr);
@@ -4878,7 +4846,8 @@ class DataHash {
                 throw takeObject(r1);
             }
             return DataHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4894,7 +4863,8 @@ class DataHash {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4915,11 +4885,13 @@ class DataHash {
             var ptr1 = r0;
             var len1 = r1;
             if (r3) {
-                ptr1 = 0; len1 = 0;
+                ptr1 = 0;
+                len1 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr1, len1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr1, len1);
         }
@@ -4941,7 +4913,8 @@ class DataHash {
                 throw takeObject(r1);
             }
             return DataHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4955,7 +4928,8 @@ class DataHash {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -4977,7 +4951,8 @@ class DataHash {
                 throw takeObject(r1);
             }
             return DataHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -4986,21 +4961,16 @@ module.exports.DataHash = DataHash;
 /**
 */
 class Datum {
-
     static __wrap(ptr) {
         const obj = Object.create(Datum.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_datum_free(ptr);
@@ -5017,7 +4987,8 @@ class Datum {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5038,7 +5009,8 @@ class Datum {
                 throw takeObject(r1);
             }
             return Datum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5056,11 +5028,13 @@ class Datum {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -5079,7 +5053,8 @@ class Datum {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5100,7 +5075,8 @@ class Datum {
                 throw takeObject(r1);
             }
             return Datum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5148,21 +5124,16 @@ module.exports.Datum = Datum;
 /**
 */
 class Drep {
-
     static __wrap(ptr) {
         const obj = Object.create(Drep.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_drep_free(ptr);
@@ -5179,7 +5150,8 @@ class Drep {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5200,7 +5172,8 @@ class Drep {
                 throw takeObject(r1);
             }
             return Drep.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5218,11 +5191,13 @@ class Drep {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -5241,7 +5216,8 @@ class Drep {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5262,7 +5238,8 @@ class Drep {
                 throw takeObject(r1);
             }
             return Drep.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5324,21 +5301,16 @@ module.exports.Drep = Drep;
 /**
 */
 class DrepVotingThresholds {
-
     static __wrap(ptr) {
         const obj = Object.create(DrepVotingThresholds.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_drepvotingthresholds_free(ptr);
@@ -5355,7 +5327,8 @@ class DrepVotingThresholds {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5376,7 +5349,8 @@ class DrepVotingThresholds {
                 throw takeObject(r1);
             }
             return DrepVotingThresholds.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5394,11 +5368,13 @@ class DrepVotingThresholds {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -5417,7 +5393,8 @@ class DrepVotingThresholds {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5438,7 +5415,8 @@ class DrepVotingThresholds {
                 throw takeObject(r1);
             }
             return DrepVotingThresholds.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5544,21 +5522,16 @@ module.exports.DrepVotingThresholds = DrepVotingThresholds;
 /**
 */
 class Ed25519KeyHash {
-
     static __wrap(ptr) {
         const obj = Object.create(Ed25519KeyHash.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_ed25519keyhash_free(ptr);
@@ -5580,7 +5553,8 @@ class Ed25519KeyHash {
                 throw takeObject(r1);
             }
             return Ed25519KeyHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5596,7 +5570,8 @@ class Ed25519KeyHash {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5617,11 +5592,13 @@ class Ed25519KeyHash {
             var ptr1 = r0;
             var len1 = r1;
             if (r3) {
-                ptr1 = 0; len1 = 0;
+                ptr1 = 0;
+                len1 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr1, len1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr1, len1);
         }
@@ -5643,7 +5620,8 @@ class Ed25519KeyHash {
                 throw takeObject(r1);
             }
             return Ed25519KeyHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5657,7 +5635,8 @@ class Ed25519KeyHash {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -5679,7 +5658,8 @@ class Ed25519KeyHash {
                 throw takeObject(r1);
             }
             return Ed25519KeyHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5688,21 +5668,16 @@ module.exports.Ed25519KeyHash = Ed25519KeyHash;
 /**
 */
 class Ed25519KeyHashes {
-
     static __wrap(ptr) {
         const obj = Object.create(Ed25519KeyHashes.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_ed25519keyhashes_free(ptr);
@@ -5719,7 +5694,8 @@ class Ed25519KeyHashes {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5740,7 +5716,8 @@ class Ed25519KeyHashes {
                 throw takeObject(r1);
             }
             return Ed25519KeyHashes.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5758,11 +5735,13 @@ class Ed25519KeyHashes {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -5781,7 +5760,8 @@ class Ed25519KeyHashes {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5802,7 +5782,8 @@ class Ed25519KeyHashes {
                 throw takeObject(r1);
             }
             return Ed25519KeyHashes.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5840,21 +5821,16 @@ module.exports.Ed25519KeyHashes = Ed25519KeyHashes;
 /**
 */
 class Ed25519Signature {
-
     static __wrap(ptr) {
         const obj = Object.create(Ed25519Signature.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_ed25519signature_free(ptr);
@@ -5871,7 +5847,8 @@ class Ed25519Signature {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5885,7 +5862,8 @@ class Ed25519Signature {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -5900,7 +5878,8 @@ class Ed25519Signature {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -5922,7 +5901,8 @@ class Ed25519Signature {
                 throw takeObject(r1);
             }
             return Ed25519Signature.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5943,7 +5923,8 @@ class Ed25519Signature {
                 throw takeObject(r1);
             }
             return Ed25519Signature.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5964,7 +5945,8 @@ class Ed25519Signature {
                 throw takeObject(r1);
             }
             return Ed25519Signature.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -5973,21 +5955,16 @@ module.exports.Ed25519Signature = Ed25519Signature;
 /**
 */
 class EnterpriseAddress {
-
     static __wrap(ptr) {
         const obj = Object.create(EnterpriseAddress.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_enterpriseaddress_free(ptr);
@@ -6030,21 +6007,16 @@ module.exports.EnterpriseAddress = EnterpriseAddress;
 /**
 */
 class ExUnitPrices {
-
     static __wrap(ptr) {
         const obj = Object.create(ExUnitPrices.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_exunitprices_free(ptr);
@@ -6061,7 +6033,8 @@ class ExUnitPrices {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6082,7 +6055,8 @@ class ExUnitPrices {
                 throw takeObject(r1);
             }
             return ExUnitPrices.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6125,21 +6099,16 @@ module.exports.ExUnitPrices = ExUnitPrices;
 /**
 */
 class ExUnits {
-
     static __wrap(ptr) {
         const obj = Object.create(ExUnits.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_exunits_free(ptr);
@@ -6156,7 +6125,8 @@ class ExUnits {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6177,7 +6147,8 @@ class ExUnits {
                 throw takeObject(r1);
             }
             return ExUnits.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6211,21 +6182,16 @@ module.exports.ExUnits = ExUnits;
 /**
 */
 class GeneralTransactionMetadata {
-
     static __wrap(ptr) {
         const obj = Object.create(GeneralTransactionMetadata.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_generaltransactionmetadata_free(ptr);
@@ -6242,7 +6208,8 @@ class GeneralTransactionMetadata {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6263,7 +6230,8 @@ class GeneralTransactionMetadata {
                 throw takeObject(r1);
             }
             return GeneralTransactionMetadata.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6281,11 +6249,13 @@ class GeneralTransactionMetadata {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -6304,7 +6274,8 @@ class GeneralTransactionMetadata {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6325,7 +6296,8 @@ class GeneralTransactionMetadata {
                 throw takeObject(r1);
             }
             return GeneralTransactionMetadata.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6375,21 +6347,16 @@ module.exports.GeneralTransactionMetadata = GeneralTransactionMetadata;
 /**
 */
 class GenesisDelegateHash {
-
     static __wrap(ptr) {
         const obj = Object.create(GenesisDelegateHash.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_genesisdelegatehash_free(ptr);
@@ -6411,7 +6378,8 @@ class GenesisDelegateHash {
                 throw takeObject(r1);
             }
             return GenesisDelegateHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6427,7 +6395,8 @@ class GenesisDelegateHash {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6448,11 +6417,13 @@ class GenesisDelegateHash {
             var ptr1 = r0;
             var len1 = r1;
             if (r3) {
-                ptr1 = 0; len1 = 0;
+                ptr1 = 0;
+                len1 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr1, len1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr1, len1);
         }
@@ -6474,7 +6445,8 @@ class GenesisDelegateHash {
                 throw takeObject(r1);
             }
             return GenesisDelegateHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6488,7 +6460,8 @@ class GenesisDelegateHash {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -6510,7 +6483,8 @@ class GenesisDelegateHash {
                 throw takeObject(r1);
             }
             return GenesisDelegateHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6519,21 +6493,16 @@ module.exports.GenesisDelegateHash = GenesisDelegateHash;
 /**
 */
 class GenesisHash {
-
     static __wrap(ptr) {
         const obj = Object.create(GenesisHash.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_genesishash_free(ptr);
@@ -6555,7 +6524,8 @@ class GenesisHash {
                 throw takeObject(r1);
             }
             return GenesisHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6571,7 +6541,8 @@ class GenesisHash {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6592,11 +6563,13 @@ class GenesisHash {
             var ptr1 = r0;
             var len1 = r1;
             if (r3) {
-                ptr1 = 0; len1 = 0;
+                ptr1 = 0;
+                len1 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr1, len1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr1, len1);
         }
@@ -6618,7 +6591,8 @@ class GenesisHash {
                 throw takeObject(r1);
             }
             return GenesisHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6632,7 +6606,8 @@ class GenesisHash {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -6654,7 +6629,8 @@ class GenesisHash {
                 throw takeObject(r1);
             }
             return GenesisHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6663,21 +6639,16 @@ module.exports.GenesisHash = GenesisHash;
 /**
 */
 class GenesisHashes {
-
     static __wrap(ptr) {
         const obj = Object.create(GenesisHashes.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_genesishashes_free(ptr);
@@ -6694,7 +6665,8 @@ class GenesisHashes {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6715,7 +6687,8 @@ class GenesisHashes {
                 throw takeObject(r1);
             }
             return GenesisHashes.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6733,11 +6706,13 @@ class GenesisHashes {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -6756,7 +6731,8 @@ class GenesisHashes {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6777,7 +6753,8 @@ class GenesisHashes {
                 throw takeObject(r1);
             }
             return GenesisHashes.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6815,21 +6792,16 @@ module.exports.GenesisHashes = GenesisHashes;
 /**
 */
 class GenesisKeyDelegation {
-
     static __wrap(ptr) {
         const obj = Object.create(GenesisKeyDelegation.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_genesiskeydelegation_free(ptr);
@@ -6846,7 +6818,8 @@ class GenesisKeyDelegation {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6867,7 +6840,8 @@ class GenesisKeyDelegation {
                 throw takeObject(r1);
             }
             return GenesisKeyDelegation.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6885,11 +6859,13 @@ class GenesisKeyDelegation {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -6908,7 +6884,8 @@ class GenesisKeyDelegation {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6929,7 +6906,8 @@ class GenesisKeyDelegation {
                 throw takeObject(r1);
             }
             return GenesisKeyDelegation.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -6972,21 +6950,16 @@ module.exports.GenesisKeyDelegation = GenesisKeyDelegation;
 /**
 */
 class GovernanceAction {
-
     static __wrap(ptr) {
         const obj = Object.create(GovernanceAction.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_governanceaction_free(ptr);
@@ -7003,7 +6976,8 @@ class GovernanceAction {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7024,7 +6998,8 @@ class GovernanceAction {
                 throw takeObject(r1);
             }
             return GovernanceAction.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7042,11 +7017,13 @@ class GovernanceAction {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -7065,7 +7042,8 @@ class GovernanceAction {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7086,7 +7064,8 @@ class GovernanceAction {
                 throw takeObject(r1);
             }
             return GovernanceAction.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7196,21 +7175,16 @@ module.exports.GovernanceAction = GovernanceAction;
 /**
 */
 class GovernanceActionId {
-
     static __wrap(ptr) {
         const obj = Object.create(GovernanceActionId.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_governanceactionid_free(ptr);
@@ -7227,7 +7201,8 @@ class GovernanceActionId {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7248,7 +7223,8 @@ class GovernanceActionId {
                 throw takeObject(r1);
             }
             return GovernanceActionId.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7266,11 +7242,13 @@ class GovernanceActionId {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -7289,7 +7267,8 @@ class GovernanceActionId {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7310,7 +7289,8 @@ class GovernanceActionId {
                 throw takeObject(r1);
             }
             return GovernanceActionId.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7344,21 +7324,16 @@ module.exports.GovernanceActionId = GovernanceActionId;
 /**
 */
 class HardForkInitiationAction {
-
     static __wrap(ptr) {
         const obj = Object.create(HardForkInitiationAction.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_hardforkinitiationaction_free(ptr);
@@ -7375,7 +7350,8 @@ class HardForkInitiationAction {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7396,7 +7372,8 @@ class HardForkInitiationAction {
                 throw takeObject(r1);
             }
             return HardForkInitiationAction.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7414,11 +7391,13 @@ class HardForkInitiationAction {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -7437,7 +7416,8 @@ class HardForkInitiationAction {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7458,7 +7438,8 @@ class HardForkInitiationAction {
                 throw takeObject(r1);
             }
             return HardForkInitiationAction.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7483,21 +7464,16 @@ module.exports.HardForkInitiationAction = HardForkInitiationAction;
 /**
 */
 class Header {
-
     static __wrap(ptr) {
         const obj = Object.create(Header.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_header_free(ptr);
@@ -7514,7 +7490,8 @@ class Header {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7535,7 +7512,8 @@ class Header {
                 throw takeObject(r1);
             }
             return Header.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7553,11 +7531,13 @@ class Header {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -7576,7 +7556,8 @@ class Header {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7597,7 +7578,8 @@ class Header {
                 throw takeObject(r1);
             }
             return Header.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7631,21 +7613,16 @@ module.exports.Header = Header;
 /**
 */
 class HeaderBody {
-
     static __wrap(ptr) {
         const obj = Object.create(HeaderBody.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_headerbody_free(ptr);
@@ -7662,7 +7639,8 @@ class HeaderBody {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7683,7 +7661,8 @@ class HeaderBody {
                 throw takeObject(r1);
             }
             return HeaderBody.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7701,11 +7680,13 @@ class HeaderBody {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -7724,7 +7705,8 @@ class HeaderBody {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7745,7 +7727,8 @@ class HeaderBody {
                 throw takeObject(r1);
             }
             return HeaderBody.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7862,21 +7845,16 @@ module.exports.HeaderBody = HeaderBody;
 /**
 */
 class Int {
-
     static __wrap(ptr) {
         const obj = Object.create(Int.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_int_free(ptr);
@@ -7893,7 +7871,8 @@ class Int {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7914,7 +7893,8 @@ class Int {
                 throw takeObject(r1);
             }
             return Int.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -7990,7 +7970,8 @@ class Int {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return r0 === 0 ? undefined : r1;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8006,7 +7987,8 @@ class Int {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return r0 === 0 ? undefined : r1;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8026,7 +8008,8 @@ class Int {
                 throw takeObject(r1);
             }
             return r0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8042,7 +8025,8 @@ class Int {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -8064,7 +8048,8 @@ class Int {
                 throw takeObject(r1);
             }
             return Int.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8073,21 +8058,16 @@ module.exports.Int = Int;
 /**
 */
 class Ipv4 {
-
     static __wrap(ptr) {
         const obj = Object.create(Ipv4.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_ipv4_free(ptr);
@@ -8104,7 +8084,8 @@ class Ipv4 {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8125,7 +8106,8 @@ class Ipv4 {
                 throw takeObject(r1);
             }
             return Ipv4.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8143,11 +8125,13 @@ class Ipv4 {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -8166,7 +8150,8 @@ class Ipv4 {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8187,7 +8172,8 @@ class Ipv4 {
                 throw takeObject(r1);
             }
             return Ipv4.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8208,7 +8194,8 @@ class Ipv4 {
                 throw takeObject(r1);
             }
             return Ipv4.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8224,7 +8211,8 @@ class Ipv4 {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8233,21 +8221,16 @@ module.exports.Ipv4 = Ipv4;
 /**
 */
 class Ipv6 {
-
     static __wrap(ptr) {
         const obj = Object.create(Ipv6.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_ipv6_free(ptr);
@@ -8264,7 +8247,8 @@ class Ipv6 {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8285,7 +8269,8 @@ class Ipv6 {
                 throw takeObject(r1);
             }
             return Ipv6.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8303,11 +8288,13 @@ class Ipv6 {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -8326,7 +8313,8 @@ class Ipv6 {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8347,7 +8335,8 @@ class Ipv6 {
                 throw takeObject(r1);
             }
             return Ipv6.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8368,7 +8357,8 @@ class Ipv6 {
                 throw takeObject(r1);
             }
             return Ipv6.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8384,7 +8374,8 @@ class Ipv6 {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8393,21 +8384,16 @@ module.exports.Ipv6 = Ipv6;
 /**
 */
 class KESSignature {
-
     static __wrap(ptr) {
         const obj = Object.create(KESSignature.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_kessignature_free(ptr);
@@ -8424,7 +8410,8 @@ class KESSignature {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8445,7 +8432,8 @@ class KESSignature {
                 throw takeObject(r1);
             }
             return KESSignature.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8454,21 +8442,16 @@ module.exports.KESSignature = KESSignature;
 /**
 */
 class KESVKey {
-
     static __wrap(ptr) {
         const obj = Object.create(KESVKey.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_kesvkey_free(ptr);
@@ -8490,7 +8473,8 @@ class KESVKey {
                 throw takeObject(r1);
             }
             return KESVKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8506,7 +8490,8 @@ class KESVKey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8527,11 +8512,13 @@ class KESVKey {
             var ptr1 = r0;
             var len1 = r1;
             if (r3) {
-                ptr1 = 0; len1 = 0;
+                ptr1 = 0;
+                len1 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr1, len1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr1, len1);
         }
@@ -8553,7 +8540,8 @@ class KESVKey {
                 throw takeObject(r1);
             }
             return KESVKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8567,7 +8555,8 @@ class KESVKey {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -8589,7 +8578,8 @@ class KESVKey {
                 throw takeObject(r1);
             }
             return KESVKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8598,21 +8588,16 @@ module.exports.KESVKey = KESVKey;
 /**
 */
 class Language {
-
     static __wrap(ptr) {
         const obj = Object.create(Language.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_language_free(ptr);
@@ -8629,7 +8614,8 @@ class Language {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8650,7 +8636,8 @@ class Language {
                 throw takeObject(r1);
             }
             return Language.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8687,21 +8674,16 @@ module.exports.Language = Language;
 /**
 */
 class Languages {
-
     static __wrap(ptr) {
         const obj = Object.create(Languages.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_languages_free(ptr);
@@ -8741,21 +8723,16 @@ module.exports.Languages = Languages;
 /**
 */
 class LegacyDaedalusPrivateKey {
-
     static __wrap(ptr) {
         const obj = Object.create(LegacyDaedalusPrivateKey.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_legacydaedalusprivatekey_free(ptr);
@@ -8777,7 +8754,8 @@ class LegacyDaedalusPrivateKey {
                 throw takeObject(r1);
             }
             return LegacyDaedalusPrivateKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8793,7 +8771,8 @@ class LegacyDaedalusPrivateKey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8809,7 +8788,8 @@ class LegacyDaedalusPrivateKey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8818,21 +8798,16 @@ module.exports.LegacyDaedalusPrivateKey = LegacyDaedalusPrivateKey;
 /**
 */
 class LinearFee {
-
     static __wrap(ptr) {
         const obj = Object.create(LinearFee.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_linearfee_free(ptr);
@@ -8867,21 +8842,16 @@ module.exports.LinearFee = LinearFee;
 /**
 */
 class MIRToStakeCredentials {
-
     static __wrap(ptr) {
         const obj = Object.create(MIRToStakeCredentials.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_mirtostakecredentials_free(ptr);
@@ -8898,7 +8868,8 @@ class MIRToStakeCredentials {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8919,7 +8890,8 @@ class MIRToStakeCredentials {
                 throw takeObject(r1);
             }
             return MIRToStakeCredentials.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8937,11 +8909,13 @@ class MIRToStakeCredentials {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -8960,7 +8934,8 @@ class MIRToStakeCredentials {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -8981,7 +8956,8 @@ class MIRToStakeCredentials {
                 throw takeObject(r1);
             }
             return MIRToStakeCredentials.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9031,21 +9007,16 @@ module.exports.MIRToStakeCredentials = MIRToStakeCredentials;
 /**
 */
 class MetadataList {
-
     static __wrap(ptr) {
         const obj = Object.create(MetadataList.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_metadatalist_free(ptr);
@@ -9062,7 +9033,8 @@ class MetadataList {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9083,7 +9055,8 @@ class MetadataList {
                 throw takeObject(r1);
             }
             return MetadataList.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9121,21 +9094,16 @@ module.exports.MetadataList = MetadataList;
 /**
 */
 class MetadataMap {
-
     static __wrap(ptr) {
         const obj = Object.create(MetadataMap.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_metadatamap_free(ptr);
@@ -9152,7 +9120,8 @@ class MetadataMap {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9173,7 +9142,8 @@ class MetadataMap {
                 throw takeObject(r1);
             }
             return MetadataMap.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9221,7 +9191,8 @@ class MetadataMap {
                 throw takeObject(r1);
             }
             return r0 === 0 ? undefined : TransactionMetadatum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9251,7 +9222,8 @@ class MetadataMap {
                 throw takeObject(r1);
             }
             return TransactionMetadatum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9272,7 +9244,8 @@ class MetadataMap {
                 throw takeObject(r1);
             }
             return TransactionMetadatum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9291,7 +9264,8 @@ class MetadataMap {
                 throw takeObject(r1);
             }
             return TransactionMetadatum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9316,21 +9290,16 @@ module.exports.MetadataMap = MetadataMap;
 /**
 */
 class Mint {
-
     static __wrap(ptr) {
         const obj = Object.create(Mint.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_mint_free(ptr);
@@ -9347,7 +9316,8 @@ class Mint {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9368,7 +9338,8 @@ class Mint {
                 throw takeObject(r1);
             }
             return Mint.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9386,11 +9357,13 @@ class Mint {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -9409,7 +9382,8 @@ class Mint {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9430,7 +9404,8 @@ class Mint {
                 throw takeObject(r1);
             }
             return Mint.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9507,21 +9482,16 @@ module.exports.Mint = Mint;
 /**
 */
 class MintAssets {
-
     static __wrap(ptr) {
         const obj = Object.create(MintAssets.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_mintassets_free(ptr);
@@ -9585,21 +9555,16 @@ module.exports.MintAssets = MintAssets;
 /**
 */
 class MoveInstantaneousReward {
-
     static __wrap(ptr) {
         const obj = Object.create(MoveInstantaneousReward.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_moveinstantaneousreward_free(ptr);
@@ -9616,7 +9581,8 @@ class MoveInstantaneousReward {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9637,7 +9603,8 @@ class MoveInstantaneousReward {
                 throw takeObject(r1);
             }
             return MoveInstantaneousReward.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9655,11 +9622,13 @@ class MoveInstantaneousReward {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -9678,7 +9647,8 @@ class MoveInstantaneousReward {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9699,7 +9669,8 @@ class MoveInstantaneousReward {
                 throw takeObject(r1);
             }
             return MoveInstantaneousReward.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9756,21 +9727,16 @@ module.exports.MoveInstantaneousReward = MoveInstantaneousReward;
 /**
 */
 class MoveInstantaneousRewardsCert {
-
     static __wrap(ptr) {
         const obj = Object.create(MoveInstantaneousRewardsCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_moveinstantaneousrewardscert_free(ptr);
@@ -9787,7 +9753,8 @@ class MoveInstantaneousRewardsCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9808,7 +9775,8 @@ class MoveInstantaneousRewardsCert {
                 throw takeObject(r1);
             }
             return MoveInstantaneousRewardsCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9826,11 +9794,13 @@ class MoveInstantaneousRewardsCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -9849,7 +9819,8 @@ class MoveInstantaneousRewardsCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9870,7 +9841,8 @@ class MoveInstantaneousRewardsCert {
                 throw takeObject(r1);
             }
             return MoveInstantaneousRewardsCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9895,21 +9867,16 @@ module.exports.MoveInstantaneousRewardsCert = MoveInstantaneousRewardsCert;
 /**
 */
 class MultiAsset {
-
     static __wrap(ptr) {
         const obj = Object.create(MultiAsset.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_multiasset_free(ptr);
@@ -9926,7 +9893,8 @@ class MultiAsset {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9947,7 +9915,8 @@ class MultiAsset {
                 throw takeObject(r1);
             }
             return MultiAsset.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -9965,11 +9934,13 @@ class MultiAsset {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -9988,7 +9959,8 @@ class MultiAsset {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10009,7 +9981,8 @@ class MultiAsset {
                 throw takeObject(r1);
             }
             return MultiAsset.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10103,21 +10076,16 @@ module.exports.MultiAsset = MultiAsset;
 /**
 */
 class MultiHostName {
-
     static __wrap(ptr) {
         const obj = Object.create(MultiHostName.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_multihostname_free(ptr);
@@ -10134,7 +10102,8 @@ class MultiHostName {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10155,7 +10124,8 @@ class MultiHostName {
                 throw takeObject(r1);
             }
             return MultiHostName.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10173,11 +10143,13 @@ class MultiHostName {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -10196,7 +10168,8 @@ class MultiHostName {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10217,7 +10190,8 @@ class MultiHostName {
                 throw takeObject(r1);
             }
             return MultiHostName.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10242,21 +10216,16 @@ module.exports.MultiHostName = MultiHostName;
 /**
 */
 class NativeScript {
-
     static __wrap(ptr) {
         const obj = Object.create(NativeScript.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_nativescript_free(ptr);
@@ -10273,7 +10242,8 @@ class NativeScript {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10294,7 +10264,8 @@ class NativeScript {
                 throw takeObject(r1);
             }
             return NativeScript.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10312,11 +10283,13 @@ class NativeScript {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -10335,7 +10308,8 @@ class NativeScript {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10356,7 +10330,8 @@ class NativeScript {
                 throw takeObject(r1);
             }
             return NativeScript.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10507,21 +10482,16 @@ module.exports.NativeScript = NativeScript;
 /**
 */
 class NativeScripts {
-
     static __wrap(ptr) {
         const obj = Object.create(NativeScripts.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_nativescripts_free(ptr);
@@ -10560,21 +10530,16 @@ module.exports.NativeScripts = NativeScripts;
 /**
 */
 class NetworkId {
-
     static __wrap(ptr) {
         const obj = Object.create(NetworkId.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_networkid_free(ptr);
@@ -10591,7 +10556,8 @@ class NetworkId {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10612,7 +10578,8 @@ class NetworkId {
                 throw takeObject(r1);
             }
             return NetworkId.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10630,11 +10597,13 @@ class NetworkId {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -10653,7 +10622,8 @@ class NetworkId {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10674,7 +10644,8 @@ class NetworkId {
                 throw takeObject(r1);
             }
             return NetworkId.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10704,21 +10675,16 @@ module.exports.NetworkId = NetworkId;
 /**
 */
 class NetworkInfo {
-
     static __wrap(ptr) {
         const obj = Object.create(NetworkInfo.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_networkinfo_free(ptr);
@@ -10765,21 +10731,16 @@ module.exports.NetworkInfo = NetworkInfo;
 /**
 */
 class NewCommittee {
-
     static __wrap(ptr) {
         const obj = Object.create(NewCommittee.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_newcommittee_free(ptr);
@@ -10796,7 +10757,8 @@ class NewCommittee {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10817,7 +10779,8 @@ class NewCommittee {
                 throw takeObject(r1);
             }
             return NewCommittee.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10835,11 +10798,13 @@ class NewCommittee {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -10858,7 +10823,8 @@ class NewCommittee {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10879,7 +10845,8 @@ class NewCommittee {
                 throw takeObject(r1);
             }
             return NewCommittee.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10913,21 +10880,16 @@ module.exports.NewCommittee = NewCommittee;
 /**
 */
 class NewConstitution {
-
     static __wrap(ptr) {
         const obj = Object.create(NewConstitution.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_newconstitution_free(ptr);
@@ -10944,7 +10906,8 @@ class NewConstitution {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10965,7 +10928,8 @@ class NewConstitution {
                 throw takeObject(r1);
             }
             return NewConstitution.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -10983,11 +10947,13 @@ class NewConstitution {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -11006,7 +10972,8 @@ class NewConstitution {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11027,7 +10994,8 @@ class NewConstitution {
                 throw takeObject(r1);
             }
             return NewConstitution.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11052,21 +11020,16 @@ module.exports.NewConstitution = NewConstitution;
 /**
 */
 class Nonce {
-
     static __wrap(ptr) {
         const obj = Object.create(Nonce.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_nonce_free(ptr);
@@ -11083,7 +11046,8 @@ class Nonce {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11104,7 +11068,8 @@ class Nonce {
                 throw takeObject(r1);
             }
             return Nonce.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11132,7 +11097,8 @@ class Nonce {
                 throw takeObject(r1);
             }
             return Nonce.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11151,7 +11117,8 @@ class Nonce {
                 wasm.__wbindgen_free(r0, r1 * 1);
             }
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11160,21 +11127,16 @@ module.exports.Nonce = Nonce;
 /**
 */
 class OperationalCert {
-
     static __wrap(ptr) {
         const obj = Object.create(OperationalCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_operationalcert_free(ptr);
@@ -11191,7 +11153,8 @@ class OperationalCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11212,7 +11175,8 @@ class OperationalCert {
                 throw takeObject(r1);
             }
             return OperationalCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11230,11 +11194,13 @@ class OperationalCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -11253,7 +11219,8 @@ class OperationalCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11274,7 +11241,8 @@ class OperationalCert {
                 throw takeObject(r1);
             }
             return OperationalCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11324,21 +11292,16 @@ module.exports.OperationalCert = OperationalCert;
 /**
 */
 class ParameterChangeAction {
-
     static __wrap(ptr) {
         const obj = Object.create(ParameterChangeAction.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_parameterchangeaction_free(ptr);
@@ -11355,7 +11318,8 @@ class ParameterChangeAction {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11376,7 +11340,8 @@ class ParameterChangeAction {
                 throw takeObject(r1);
             }
             return ParameterChangeAction.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11394,11 +11359,13 @@ class ParameterChangeAction {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -11417,7 +11384,8 @@ class ParameterChangeAction {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11438,7 +11406,8 @@ class ParameterChangeAction {
                 throw takeObject(r1);
             }
             return ParameterChangeAction.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11463,21 +11432,16 @@ module.exports.ParameterChangeAction = ParameterChangeAction;
 /**
 */
 class PlutusData {
-
     static __wrap(ptr) {
         const obj = Object.create(PlutusData.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_plutusdata_free(ptr);
@@ -11494,7 +11458,8 @@ class PlutusData {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11515,7 +11480,8 @@ class PlutusData {
                 throw takeObject(r1);
             }
             return PlutusData.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11615,7 +11581,8 @@ class PlutusData {
                 wasm.__wbindgen_free(r0, r1 * 1);
             }
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11624,21 +11591,16 @@ module.exports.PlutusData = PlutusData;
 /**
 */
 class PlutusList {
-
     static __wrap(ptr) {
         const obj = Object.create(PlutusList.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_plutuslist_free(ptr);
@@ -11655,7 +11617,8 @@ class PlutusList {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11676,7 +11639,8 @@ class PlutusList {
                 throw takeObject(r1);
             }
             return PlutusList.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11714,21 +11678,16 @@ module.exports.PlutusList = PlutusList;
 /**
 */
 class PlutusMap {
-
     static __wrap(ptr) {
         const obj = Object.create(PlutusMap.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_plutusmap_free(ptr);
@@ -11745,7 +11704,8 @@ class PlutusMap {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11766,7 +11726,8 @@ class PlutusMap {
                 throw takeObject(r1);
             }
             return PlutusMap.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11816,21 +11777,16 @@ module.exports.PlutusMap = PlutusMap;
 /**
 */
 class PlutusScript {
-
     static __wrap(ptr) {
         const obj = Object.create(PlutusScript.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_plutusscript_free(ptr);
@@ -11847,7 +11803,8 @@ class PlutusScript {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11868,7 +11825,8 @@ class PlutusScript {
                 throw takeObject(r1);
             }
             return PlutusScript.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11911,7 +11869,8 @@ class PlutusScript {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11920,21 +11879,16 @@ module.exports.PlutusScript = PlutusScript;
 /**
 */
 class PlutusScripts {
-
     static __wrap(ptr) {
         const obj = Object.create(PlutusScripts.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_plutusscripts_free(ptr);
@@ -11951,7 +11905,8 @@ class PlutusScripts {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -11972,7 +11927,8 @@ class PlutusScripts {
                 throw takeObject(r1);
             }
             return PlutusScripts.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12010,21 +11966,16 @@ module.exports.PlutusScripts = PlutusScripts;
 /**
 */
 class PlutusWitness {
-
     static __wrap(ptr) {
         const obj = Object.create(PlutusWitness.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_plutuswitness_free(ptr);
@@ -12105,21 +12056,16 @@ module.exports.PlutusWitness = PlutusWitness;
 /**
 */
 class Pointer {
-
     static __wrap(ptr) {
         const obj = Object.create(Pointer.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_pointer_free(ptr);
@@ -12163,21 +12109,16 @@ module.exports.Pointer = Pointer;
 /**
 */
 class PointerAddress {
-
     static __wrap(ptr) {
         const obj = Object.create(PointerAddress.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_pointeraddress_free(ptr);
@@ -12229,21 +12170,16 @@ module.exports.PointerAddress = PointerAddress;
 /**
 */
 class PoolMetadata {
-
     static __wrap(ptr) {
         const obj = Object.create(PoolMetadata.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_poolmetadata_free(ptr);
@@ -12260,7 +12196,8 @@ class PoolMetadata {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12281,7 +12218,8 @@ class PoolMetadata {
                 throw takeObject(r1);
             }
             return PoolMetadata.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12299,11 +12237,13 @@ class PoolMetadata {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -12322,7 +12262,8 @@ class PoolMetadata {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12343,7 +12284,8 @@ class PoolMetadata {
                 throw takeObject(r1);
             }
             return PoolMetadata.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12377,21 +12319,16 @@ module.exports.PoolMetadata = PoolMetadata;
 /**
 */
 class PoolMetadataHash {
-
     static __wrap(ptr) {
         const obj = Object.create(PoolMetadataHash.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_poolmetadatahash_free(ptr);
@@ -12413,7 +12350,8 @@ class PoolMetadataHash {
                 throw takeObject(r1);
             }
             return PoolMetadataHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12429,7 +12367,8 @@ class PoolMetadataHash {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12450,11 +12389,13 @@ class PoolMetadataHash {
             var ptr1 = r0;
             var len1 = r1;
             if (r3) {
-                ptr1 = 0; len1 = 0;
+                ptr1 = 0;
+                len1 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr1, len1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr1, len1);
         }
@@ -12476,7 +12417,8 @@ class PoolMetadataHash {
                 throw takeObject(r1);
             }
             return PoolMetadataHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12490,7 +12432,8 @@ class PoolMetadataHash {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -12512,7 +12455,8 @@ class PoolMetadataHash {
                 throw takeObject(r1);
             }
             return PoolMetadataHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12521,21 +12465,16 @@ module.exports.PoolMetadataHash = PoolMetadataHash;
 /**
 */
 class PoolParams {
-
     static __wrap(ptr) {
         const obj = Object.create(PoolParams.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_poolparams_free(ptr);
@@ -12552,7 +12491,8 @@ class PoolParams {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12573,7 +12513,8 @@ class PoolParams {
                 throw takeObject(r1);
             }
             return PoolParams.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12591,11 +12532,13 @@ class PoolParams {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -12614,7 +12557,8 @@ class PoolParams {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12635,7 +12579,8 @@ class PoolParams {
                 throw takeObject(r1);
             }
             return PoolParams.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12736,21 +12681,16 @@ module.exports.PoolParams = PoolParams;
 /**
 */
 class PoolRegistration {
-
     static __wrap(ptr) {
         const obj = Object.create(PoolRegistration.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_poolregistration_free(ptr);
@@ -12767,7 +12707,8 @@ class PoolRegistration {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12788,7 +12729,8 @@ class PoolRegistration {
                 throw takeObject(r1);
             }
             return PoolRegistration.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12806,11 +12748,13 @@ class PoolRegistration {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -12829,7 +12773,8 @@ class PoolRegistration {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12850,7 +12795,8 @@ class PoolRegistration {
                 throw takeObject(r1);
             }
             return PoolRegistration.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12881,21 +12827,16 @@ module.exports.PoolRegistration = PoolRegistration;
 /**
 */
 class PoolRetirement {
-
     static __wrap(ptr) {
         const obj = Object.create(PoolRetirement.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_poolretirement_free(ptr);
@@ -12912,7 +12853,8 @@ class PoolRetirement {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12933,7 +12875,8 @@ class PoolRetirement {
                 throw takeObject(r1);
             }
             return PoolRetirement.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12951,11 +12894,13 @@ class PoolRetirement {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -12974,7 +12919,8 @@ class PoolRetirement {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -12995,7 +12941,8 @@ class PoolRetirement {
                 throw takeObject(r1);
             }
             return PoolRetirement.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13028,21 +12975,16 @@ module.exports.PoolRetirement = PoolRetirement;
 /**
 */
 class PoolVotingThresholds {
-
     static __wrap(ptr) {
         const obj = Object.create(PoolVotingThresholds.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_poolvotingthresholds_free(ptr);
@@ -13059,7 +13001,8 @@ class PoolVotingThresholds {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13080,7 +13023,8 @@ class PoolVotingThresholds {
                 throw takeObject(r1);
             }
             return PoolVotingThresholds.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13098,11 +13042,13 @@ class PoolVotingThresholds {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -13121,7 +13067,8 @@ class PoolVotingThresholds {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13142,7 +13089,8 @@ class PoolVotingThresholds {
                 throw takeObject(r1);
             }
             return PoolVotingThresholds.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13194,21 +13142,16 @@ module.exports.PoolVotingThresholds = PoolVotingThresholds;
 /**
 */
 class PrivateKey {
-
     static __wrap(ptr) {
         const obj = Object.create(PrivateKey.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_privatekey_free(ptr);
@@ -13234,7 +13177,8 @@ class PrivateKey {
                 throw takeObject(r1);
             }
             return PrivateKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13252,7 +13196,8 @@ class PrivateKey {
                 throw takeObject(r1);
             }
             return PrivateKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13281,7 +13226,8 @@ class PrivateKey {
                 throw takeObject(r1);
             }
             return PrivateKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13295,7 +13241,8 @@ class PrivateKey {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -13312,7 +13259,8 @@ class PrivateKey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13333,7 +13281,8 @@ class PrivateKey {
                 throw takeObject(r1);
             }
             return PrivateKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13354,7 +13303,8 @@ class PrivateKey {
                 throw takeObject(r1);
             }
             return PrivateKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13385,7 +13335,8 @@ class PrivateKey {
                 throw takeObject(r1);
             }
             return PrivateKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13401,7 +13352,8 @@ class PrivateKey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13410,21 +13362,16 @@ module.exports.PrivateKey = PrivateKey;
 /**
 */
 class ProposalProcedure {
-
     static __wrap(ptr) {
         const obj = Object.create(ProposalProcedure.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_proposalprocedure_free(ptr);
@@ -13441,7 +13388,8 @@ class ProposalProcedure {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13462,7 +13410,8 @@ class ProposalProcedure {
                 throw takeObject(r1);
             }
             return ProposalProcedure.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13480,11 +13429,13 @@ class ProposalProcedure {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -13503,7 +13454,8 @@ class ProposalProcedure {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13524,7 +13476,8 @@ class ProposalProcedure {
                 throw takeObject(r1);
             }
             return ProposalProcedure.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13576,21 +13529,16 @@ module.exports.ProposalProcedure = ProposalProcedure;
 /**
 */
 class ProposalProcedures {
-
     static __wrap(ptr) {
         const obj = Object.create(ProposalProcedures.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_proposalprocedures_free(ptr);
@@ -13607,7 +13555,8 @@ class ProposalProcedures {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13628,7 +13577,8 @@ class ProposalProcedures {
                 throw takeObject(r1);
             }
             return ProposalProcedures.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13666,21 +13616,16 @@ module.exports.ProposalProcedures = ProposalProcedures;
 /**
 */
 class ProposedProtocolParameterUpdates {
-
     static __wrap(ptr) {
         const obj = Object.create(ProposedProtocolParameterUpdates.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_proposedprotocolparameterupdates_free(ptr);
@@ -13697,7 +13642,8 @@ class ProposedProtocolParameterUpdates {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13718,7 +13664,8 @@ class ProposedProtocolParameterUpdates {
                 throw takeObject(r1);
             }
             return ProposedProtocolParameterUpdates.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13736,11 +13683,13 @@ class ProposedProtocolParameterUpdates {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -13759,7 +13708,8 @@ class ProposedProtocolParameterUpdates {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13780,7 +13730,8 @@ class ProposedProtocolParameterUpdates {
                 throw takeObject(r1);
             }
             return ProposedProtocolParameterUpdates.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13830,21 +13781,16 @@ module.exports.ProposedProtocolParameterUpdates = ProposedProtocolParameterUpdat
 /**
 */
 class ProtocolParamUpdate {
-
     static __wrap(ptr) {
         const obj = Object.create(ProtocolParamUpdate.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_protocolparamupdate_free(ptr);
@@ -13861,7 +13807,8 @@ class ProtocolParamUpdate {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13882,7 +13829,8 @@ class ProtocolParamUpdate {
                 throw takeObject(r1);
             }
             return ProtocolParamUpdate.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13900,11 +13848,13 @@ class ProtocolParamUpdate {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -13923,7 +13873,8 @@ class ProtocolParamUpdate {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13944,7 +13895,8 @@ class ProtocolParamUpdate {
                 throw takeObject(r1);
             }
             return ProtocolParamUpdate.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -13992,7 +13944,8 @@ class ProtocolParamUpdate {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return r0 === 0 ? undefined : r1 >>> 0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14012,7 +13965,8 @@ class ProtocolParamUpdate {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return r0 === 0 ? undefined : r1 >>> 0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14032,7 +13986,8 @@ class ProtocolParamUpdate {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return r0 === 0 ? undefined : r1 >>> 0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14080,7 +14035,8 @@ class ProtocolParamUpdate {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return r0 === 0 ? undefined : r1 >>> 0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14100,7 +14056,8 @@ class ProtocolParamUpdate {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return r0 === 0 ? undefined : r1 >>> 0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14288,7 +14245,8 @@ class ProtocolParamUpdate {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return r0 === 0 ? undefined : r1 >>> 0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14308,7 +14266,8 @@ class ProtocolParamUpdate {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return r0 === 0 ? undefined : r1 >>> 0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14328,7 +14287,8 @@ class ProtocolParamUpdate {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return r0 === 0 ? undefined : r1 >>> 0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14453,7 +14413,8 @@ class ProtocolParamUpdate {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return r0 === 0 ? undefined : r1 >>> 0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14469,21 +14430,16 @@ module.exports.ProtocolParamUpdate = ProtocolParamUpdate;
 /**
 */
 class ProtocolVersion {
-
     static __wrap(ptr) {
         const obj = Object.create(ProtocolVersion.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_protocolversion_free(ptr);
@@ -14500,7 +14456,8 @@ class ProtocolVersion {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14521,7 +14478,8 @@ class ProtocolVersion {
                 throw takeObject(r1);
             }
             return ProtocolVersion.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14539,11 +14497,13 @@ class ProtocolVersion {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -14562,7 +14522,8 @@ class ProtocolVersion {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14583,7 +14544,8 @@ class ProtocolVersion {
                 throw takeObject(r1);
             }
             return ProtocolVersion.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14616,21 +14578,16 @@ module.exports.ProtocolVersion = ProtocolVersion;
 * ED25519 key used as public key
 */
 class PublicKey {
-
     static __wrap(ptr) {
         const obj = Object.create(PublicKey.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_publickey_free(ptr);
@@ -14657,7 +14614,8 @@ class PublicKey {
                 throw takeObject(r1);
             }
             return PublicKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14671,7 +14629,8 @@ class PublicKey {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -14688,7 +14647,8 @@ class PublicKey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14709,7 +14669,8 @@ class PublicKey {
                 throw takeObject(r1);
             }
             return PublicKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14737,21 +14698,16 @@ module.exports.PublicKey = PublicKey;
 /**
 */
 class PublicKeys {
-
     static __wrap(ptr) {
         const obj = Object.create(PublicKeys.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_publickeys_free(ptr);
@@ -14789,21 +14745,16 @@ module.exports.PublicKeys = PublicKeys;
 /**
 */
 class Redeemer {
-
     static __wrap(ptr) {
         const obj = Object.create(Redeemer.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_redeemer_free(ptr);
@@ -14820,7 +14771,8 @@ class Redeemer {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14841,7 +14793,8 @@ class Redeemer {
                 throw takeObject(r1);
             }
             return Redeemer.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14893,21 +14846,16 @@ module.exports.Redeemer = Redeemer;
 /**
 */
 class RedeemerTag {
-
     static __wrap(ptr) {
         const obj = Object.create(RedeemerTag.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_redeemertag_free(ptr);
@@ -14924,7 +14872,8 @@ class RedeemerTag {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14945,7 +14894,8 @@ class RedeemerTag {
                 throw takeObject(r1);
             }
             return RedeemerTag.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -14996,21 +14946,16 @@ module.exports.RedeemerTag = RedeemerTag;
 /**
 */
 class RedeemerWitnessKey {
-
     static __wrap(ptr) {
         const obj = Object.create(RedeemerWitnessKey.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_redeemerwitnesskey_free(ptr);
@@ -15045,21 +14990,16 @@ module.exports.RedeemerWitnessKey = RedeemerWitnessKey;
 /**
 */
 class Redeemers {
-
     static __wrap(ptr) {
         const obj = Object.create(Redeemers.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_redeemers_free(ptr);
@@ -15076,7 +15016,8 @@ class Redeemers {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15097,7 +15038,8 @@ class Redeemers {
                 throw takeObject(r1);
             }
             return Redeemers.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15135,21 +15077,16 @@ module.exports.Redeemers = Redeemers;
 /**
 */
 class RegCert {
-
     static __wrap(ptr) {
         const obj = Object.create(RegCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_regcert_free(ptr);
@@ -15166,7 +15103,8 @@ class RegCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15187,7 +15125,8 @@ class RegCert {
                 throw takeObject(r1);
             }
             return RegCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15205,11 +15144,13 @@ class RegCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -15228,7 +15169,8 @@ class RegCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15249,7 +15191,8 @@ class RegCert {
                 throw takeObject(r1);
             }
             return RegCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15283,21 +15226,16 @@ module.exports.RegCert = RegCert;
 /**
 */
 class RegCommitteeHotKeyCert {
-
     static __wrap(ptr) {
         const obj = Object.create(RegCommitteeHotKeyCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_regcommitteehotkeycert_free(ptr);
@@ -15314,7 +15252,8 @@ class RegCommitteeHotKeyCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15335,7 +15274,8 @@ class RegCommitteeHotKeyCert {
                 throw takeObject(r1);
             }
             return RegCommitteeHotKeyCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15353,11 +15293,13 @@ class RegCommitteeHotKeyCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -15376,7 +15318,8 @@ class RegCommitteeHotKeyCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15397,7 +15340,8 @@ class RegCommitteeHotKeyCert {
                 throw takeObject(r1);
             }
             return RegCommitteeHotKeyCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15431,21 +15375,16 @@ module.exports.RegCommitteeHotKeyCert = RegCommitteeHotKeyCert;
 /**
 */
 class RegDrepCert {
-
     static __wrap(ptr) {
         const obj = Object.create(RegDrepCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_regdrepcert_free(ptr);
@@ -15462,7 +15401,8 @@ class RegDrepCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15483,7 +15423,8 @@ class RegDrepCert {
                 throw takeObject(r1);
             }
             return RegDrepCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15501,11 +15442,13 @@ class RegDrepCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -15524,7 +15467,8 @@ class RegDrepCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15545,7 +15489,8 @@ class RegDrepCert {
                 throw takeObject(r1);
             }
             return RegDrepCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15579,21 +15524,16 @@ module.exports.RegDrepCert = RegDrepCert;
 /**
 */
 class Relay {
-
     static __wrap(ptr) {
         const obj = Object.create(Relay.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_relay_free(ptr);
@@ -15610,7 +15550,8 @@ class Relay {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15631,7 +15572,8 @@ class Relay {
                 throw takeObject(r1);
             }
             return Relay.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15649,11 +15591,13 @@ class Relay {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -15672,7 +15616,8 @@ class Relay {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15693,7 +15638,8 @@ class Relay {
                 throw takeObject(r1);
             }
             return Relay.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15757,21 +15703,16 @@ module.exports.Relay = Relay;
 /**
 */
 class Relays {
-
     static __wrap(ptr) {
         const obj = Object.create(Relays.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_relays_free(ptr);
@@ -15788,7 +15729,8 @@ class Relays {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15809,7 +15751,8 @@ class Relays {
                 throw takeObject(r1);
             }
             return Relays.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15827,11 +15770,13 @@ class Relays {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -15850,7 +15795,8 @@ class Relays {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15871,7 +15817,8 @@ class Relays {
                 throw takeObject(r1);
             }
             return Relays.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -15909,21 +15856,16 @@ module.exports.Relays = Relays;
 /**
 */
 class RequiredWitnessSet {
-
     static __wrap(ptr) {
         const obj = Object.create(RequiredWitnessSet.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_requiredwitnessset_free(ptr);
@@ -16052,21 +15994,16 @@ module.exports.RequiredWitnessSet = RequiredWitnessSet;
 /**
 */
 class RewardAddress {
-
     static __wrap(ptr) {
         const obj = Object.create(RewardAddress.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_rewardaddress_free(ptr);
@@ -16109,21 +16046,16 @@ module.exports.RewardAddress = RewardAddress;
 /**
 */
 class RewardAddresses {
-
     static __wrap(ptr) {
         const obj = Object.create(RewardAddresses.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_rewardaddresses_free(ptr);
@@ -16140,7 +16072,8 @@ class RewardAddresses {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16161,7 +16094,8 @@ class RewardAddresses {
                 throw takeObject(r1);
             }
             return RewardAddresses.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16179,11 +16113,13 @@ class RewardAddresses {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -16202,7 +16138,8 @@ class RewardAddresses {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16223,7 +16160,8 @@ class RewardAddresses {
                 throw takeObject(r1);
             }
             return RewardAddresses.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16261,21 +16199,16 @@ module.exports.RewardAddresses = RewardAddresses;
 /**
 */
 class Script {
-
     static __wrap(ptr) {
         const obj = Object.create(Script.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_script_free(ptr);
@@ -16292,7 +16225,8 @@ class Script {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16313,7 +16247,8 @@ class Script {
                 throw takeObject(r1);
             }
             return Script.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16331,11 +16266,13 @@ class Script {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -16354,7 +16291,8 @@ class Script {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16375,7 +16313,8 @@ class Script {
                 throw takeObject(r1);
             }
             return Script.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16455,21 +16394,16 @@ module.exports.Script = Script;
 /**
 */
 class ScriptAll {
-
     static __wrap(ptr) {
         const obj = Object.create(ScriptAll.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_scriptall_free(ptr);
@@ -16486,7 +16420,8 @@ class ScriptAll {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16507,7 +16442,8 @@ class ScriptAll {
                 throw takeObject(r1);
             }
             return ScriptAll.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16525,11 +16461,13 @@ class ScriptAll {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -16548,7 +16486,8 @@ class ScriptAll {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16569,7 +16508,8 @@ class ScriptAll {
                 throw takeObject(r1);
             }
             return ScriptAll.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16594,21 +16534,16 @@ module.exports.ScriptAll = ScriptAll;
 /**
 */
 class ScriptAny {
-
     static __wrap(ptr) {
         const obj = Object.create(ScriptAny.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_scriptany_free(ptr);
@@ -16625,7 +16560,8 @@ class ScriptAny {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16646,7 +16582,8 @@ class ScriptAny {
                 throw takeObject(r1);
             }
             return ScriptAny.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16664,11 +16601,13 @@ class ScriptAny {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -16687,7 +16626,8 @@ class ScriptAny {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16708,7 +16648,8 @@ class ScriptAny {
                 throw takeObject(r1);
             }
             return ScriptAny.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16733,21 +16674,16 @@ module.exports.ScriptAny = ScriptAny;
 /**
 */
 class ScriptDataHash {
-
     static __wrap(ptr) {
         const obj = Object.create(ScriptDataHash.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_scriptdatahash_free(ptr);
@@ -16769,7 +16705,8 @@ class ScriptDataHash {
                 throw takeObject(r1);
             }
             return ScriptDataHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16785,7 +16722,8 @@ class ScriptDataHash {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16806,11 +16744,13 @@ class ScriptDataHash {
             var ptr1 = r0;
             var len1 = r1;
             if (r3) {
-                ptr1 = 0; len1 = 0;
+                ptr1 = 0;
+                len1 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr1, len1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr1, len1);
         }
@@ -16832,7 +16772,8 @@ class ScriptDataHash {
                 throw takeObject(r1);
             }
             return ScriptDataHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16846,7 +16787,8 @@ class ScriptDataHash {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -16868,7 +16810,8 @@ class ScriptDataHash {
                 throw takeObject(r1);
             }
             return ScriptDataHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16877,21 +16820,16 @@ module.exports.ScriptDataHash = ScriptDataHash;
 /**
 */
 class ScriptHash {
-
     static __wrap(ptr) {
         const obj = Object.create(ScriptHash.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_scripthash_free(ptr);
@@ -16913,7 +16851,8 @@ class ScriptHash {
                 throw takeObject(r1);
             }
             return ScriptHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16929,7 +16868,8 @@ class ScriptHash {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16950,11 +16890,13 @@ class ScriptHash {
             var ptr1 = r0;
             var len1 = r1;
             if (r3) {
-                ptr1 = 0; len1 = 0;
+                ptr1 = 0;
+                len1 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr1, len1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr1, len1);
         }
@@ -16976,7 +16918,8 @@ class ScriptHash {
                 throw takeObject(r1);
             }
             return ScriptHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -16990,7 +16933,8 @@ class ScriptHash {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -17012,7 +16956,8 @@ class ScriptHash {
                 throw takeObject(r1);
             }
             return ScriptHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17021,21 +16966,16 @@ module.exports.ScriptHash = ScriptHash;
 /**
 */
 class ScriptHashes {
-
     static __wrap(ptr) {
         const obj = Object.create(ScriptHashes.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_scripthashes_free(ptr);
@@ -17052,7 +16992,8 @@ class ScriptHashes {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17073,7 +17014,8 @@ class ScriptHashes {
                 throw takeObject(r1);
             }
             return ScriptHashes.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17091,11 +17033,13 @@ class ScriptHashes {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -17114,7 +17058,8 @@ class ScriptHashes {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17135,7 +17080,8 @@ class ScriptHashes {
                 throw takeObject(r1);
             }
             return ScriptHashes.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17173,21 +17119,16 @@ module.exports.ScriptHashes = ScriptHashes;
 /**
 */
 class ScriptNOfK {
-
     static __wrap(ptr) {
         const obj = Object.create(ScriptNOfK.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_scriptnofk_free(ptr);
@@ -17204,7 +17145,8 @@ class ScriptNOfK {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17225,7 +17167,8 @@ class ScriptNOfK {
                 throw takeObject(r1);
             }
             return ScriptNOfK.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17243,11 +17186,13 @@ class ScriptNOfK {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -17266,7 +17211,8 @@ class ScriptNOfK {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17287,7 +17233,8 @@ class ScriptNOfK {
                 throw takeObject(r1);
             }
             return ScriptNOfK.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17320,21 +17267,16 @@ module.exports.ScriptNOfK = ScriptNOfK;
 /**
 */
 class ScriptPubkey {
-
     static __wrap(ptr) {
         const obj = Object.create(ScriptPubkey.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_scriptpubkey_free(ptr);
@@ -17351,7 +17293,8 @@ class ScriptPubkey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17372,7 +17315,8 @@ class ScriptPubkey {
                 throw takeObject(r1);
             }
             return ScriptPubkey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17390,11 +17334,13 @@ class ScriptPubkey {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -17413,7 +17359,8 @@ class ScriptPubkey {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17434,7 +17381,8 @@ class ScriptPubkey {
                 throw takeObject(r1);
             }
             return ScriptPubkey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17459,21 +17407,16 @@ module.exports.ScriptPubkey = ScriptPubkey;
 /**
 */
 class ScriptRef {
-
     static __wrap(ptr) {
         const obj = Object.create(ScriptRef.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_scriptref_free(ptr);
@@ -17490,7 +17433,8 @@ class ScriptRef {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17511,7 +17455,8 @@ class ScriptRef {
                 throw takeObject(r1);
             }
             return ScriptRef.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17529,11 +17474,13 @@ class ScriptRef {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -17552,7 +17499,8 @@ class ScriptRef {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17573,7 +17521,8 @@ class ScriptRef {
                 throw takeObject(r1);
             }
             return ScriptRef.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17598,21 +17547,16 @@ module.exports.ScriptRef = ScriptRef;
 /**
 */
 class ScriptWitness {
-
     static __wrap(ptr) {
         const obj = Object.create(ScriptWitness.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_scriptwitness_free(ptr);
@@ -17631,11 +17575,13 @@ class ScriptWitness {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -17654,7 +17600,8 @@ class ScriptWitness {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17675,7 +17622,8 @@ class ScriptWitness {
                 throw takeObject(r1);
             }
             return ScriptWitness.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17723,21 +17671,16 @@ module.exports.ScriptWitness = ScriptWitness;
 /**
 */
 class SingleHostAddr {
-
     static __wrap(ptr) {
         const obj = Object.create(SingleHostAddr.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_singlehostaddr_free(ptr);
@@ -17754,7 +17697,8 @@ class SingleHostAddr {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17775,7 +17719,8 @@ class SingleHostAddr {
                 throw takeObject(r1);
             }
             return SingleHostAddr.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17793,11 +17738,13 @@ class SingleHostAddr {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -17816,7 +17763,8 @@ class SingleHostAddr {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17837,7 +17785,8 @@ class SingleHostAddr {
                 throw takeObject(r1);
             }
             return SingleHostAddr.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17887,21 +17836,16 @@ module.exports.SingleHostAddr = SingleHostAddr;
 /**
 */
 class SingleHostName {
-
     static __wrap(ptr) {
         const obj = Object.create(SingleHostName.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_singlehostname_free(ptr);
@@ -17918,7 +17862,8 @@ class SingleHostName {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17939,7 +17884,8 @@ class SingleHostName {
                 throw takeObject(r1);
             }
             return SingleHostName.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -17957,11 +17903,13 @@ class SingleHostName {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -17980,7 +17928,8 @@ class SingleHostName {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18001,7 +17950,8 @@ class SingleHostName {
                 throw takeObject(r1);
             }
             return SingleHostName.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18034,21 +17984,16 @@ module.exports.SingleHostName = SingleHostName;
 /**
 */
 class StakeCredential {
-
     static __wrap(ptr) {
         const obj = Object.create(StakeCredential.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_stakecredential_free(ptr);
@@ -18104,7 +18049,8 @@ class StakeCredential {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18125,7 +18071,8 @@ class StakeCredential {
                 throw takeObject(r1);
             }
             return StakeCredential.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18143,11 +18090,13 @@ class StakeCredential {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -18166,7 +18115,8 @@ class StakeCredential {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18187,7 +18137,8 @@ class StakeCredential {
                 throw takeObject(r1);
             }
             return StakeCredential.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18196,21 +18147,16 @@ module.exports.StakeCredential = StakeCredential;
 /**
 */
 class StakeCredentials {
-
     static __wrap(ptr) {
         const obj = Object.create(StakeCredentials.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_stakecredentials_free(ptr);
@@ -18227,7 +18173,8 @@ class StakeCredentials {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18248,7 +18195,8 @@ class StakeCredentials {
                 throw takeObject(r1);
             }
             return StakeCredentials.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18266,11 +18214,13 @@ class StakeCredentials {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -18289,7 +18239,8 @@ class StakeCredentials {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18310,7 +18261,8 @@ class StakeCredentials {
                 throw takeObject(r1);
             }
             return StakeCredentials.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18348,21 +18300,16 @@ module.exports.StakeCredentials = StakeCredentials;
 /**
 */
 class StakeDelegation {
-
     static __wrap(ptr) {
         const obj = Object.create(StakeDelegation.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_stakedelegation_free(ptr);
@@ -18379,7 +18326,8 @@ class StakeDelegation {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18400,7 +18348,8 @@ class StakeDelegation {
                 throw takeObject(r1);
             }
             return StakeDelegation.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18418,11 +18367,13 @@ class StakeDelegation {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -18441,7 +18392,8 @@ class StakeDelegation {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18462,7 +18414,8 @@ class StakeDelegation {
                 throw takeObject(r1);
             }
             return StakeDelegation.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18496,21 +18449,16 @@ module.exports.StakeDelegation = StakeDelegation;
 /**
 */
 class StakeDeregistration {
-
     static __wrap(ptr) {
         const obj = Object.create(StakeDeregistration.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_stakederegistration_free(ptr);
@@ -18527,7 +18475,8 @@ class StakeDeregistration {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18548,7 +18497,8 @@ class StakeDeregistration {
                 throw takeObject(r1);
             }
             return StakeDeregistration.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18566,11 +18516,13 @@ class StakeDeregistration {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -18589,7 +18541,8 @@ class StakeDeregistration {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18610,7 +18563,8 @@ class StakeDeregistration {
                 throw takeObject(r1);
             }
             return StakeDeregistration.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18635,21 +18589,16 @@ module.exports.StakeDeregistration = StakeDeregistration;
 /**
 */
 class StakeRegDelegCert {
-
     static __wrap(ptr) {
         const obj = Object.create(StakeRegDelegCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_stakeregdelegcert_free(ptr);
@@ -18666,7 +18615,8 @@ class StakeRegDelegCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18687,7 +18637,8 @@ class StakeRegDelegCert {
                 throw takeObject(r1);
             }
             return StakeRegDelegCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18705,11 +18656,13 @@ class StakeRegDelegCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -18728,7 +18681,8 @@ class StakeRegDelegCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18749,7 +18703,8 @@ class StakeRegDelegCert {
                 throw takeObject(r1);
             }
             return StakeRegDelegCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18792,21 +18747,16 @@ module.exports.StakeRegDelegCert = StakeRegDelegCert;
 /**
 */
 class StakeRegistration {
-
     static __wrap(ptr) {
         const obj = Object.create(StakeRegistration.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_stakeregistration_free(ptr);
@@ -18823,7 +18773,8 @@ class StakeRegistration {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18844,7 +18795,8 @@ class StakeRegistration {
                 throw takeObject(r1);
             }
             return StakeRegistration.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18862,11 +18814,13 @@ class StakeRegistration {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -18885,7 +18839,8 @@ class StakeRegistration {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18906,7 +18861,8 @@ class StakeRegistration {
                 throw takeObject(r1);
             }
             return StakeRegistration.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18931,21 +18887,16 @@ module.exports.StakeRegistration = StakeRegistration;
 /**
 */
 class StakeVoteDelegCert {
-
     static __wrap(ptr) {
         const obj = Object.create(StakeVoteDelegCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_stakevotedelegcert_free(ptr);
@@ -18962,7 +18913,8 @@ class StakeVoteDelegCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -18983,7 +18935,8 @@ class StakeVoteDelegCert {
                 throw takeObject(r1);
             }
             return StakeVoteDelegCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19001,11 +18954,13 @@ class StakeVoteDelegCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -19024,7 +18979,8 @@ class StakeVoteDelegCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19045,7 +19001,8 @@ class StakeVoteDelegCert {
                 throw takeObject(r1);
             }
             return StakeVoteDelegCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19088,21 +19045,16 @@ module.exports.StakeVoteDelegCert = StakeVoteDelegCert;
 /**
 */
 class StakeVoteRegDelegCert {
-
     static __wrap(ptr) {
         const obj = Object.create(StakeVoteRegDelegCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_stakevoteregdelegcert_free(ptr);
@@ -19119,7 +19071,8 @@ class StakeVoteRegDelegCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19140,7 +19093,8 @@ class StakeVoteRegDelegCert {
                 throw takeObject(r1);
             }
             return StakeVoteRegDelegCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19158,11 +19112,13 @@ class StakeVoteRegDelegCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -19181,7 +19137,8 @@ class StakeVoteRegDelegCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19202,7 +19159,8 @@ class StakeVoteRegDelegCert {
                 throw takeObject(r1);
             }
             return StakeVoteRegDelegCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19254,21 +19212,16 @@ module.exports.StakeVoteRegDelegCert = StakeVoteRegDelegCert;
 /**
 */
 class Strings {
-
     static __wrap(ptr) {
         const obj = Object.create(Strings.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_strings_free(ptr);
@@ -19298,7 +19251,8 @@ class Strings {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -19316,21 +19270,16 @@ module.exports.Strings = Strings;
 /**
 */
 class TimelockExpiry {
-
     static __wrap(ptr) {
         const obj = Object.create(TimelockExpiry.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_timelockexpiry_free(ptr);
@@ -19347,7 +19296,8 @@ class TimelockExpiry {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19368,7 +19318,8 @@ class TimelockExpiry {
                 throw takeObject(r1);
             }
             return TimelockExpiry.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19386,11 +19337,13 @@ class TimelockExpiry {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -19409,7 +19362,8 @@ class TimelockExpiry {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19430,7 +19384,8 @@ class TimelockExpiry {
                 throw takeObject(r1);
             }
             return TimelockExpiry.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19455,21 +19410,16 @@ module.exports.TimelockExpiry = TimelockExpiry;
 /**
 */
 class TimelockStart {
-
     static __wrap(ptr) {
         const obj = Object.create(TimelockStart.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_timelockstart_free(ptr);
@@ -19486,7 +19436,8 @@ class TimelockStart {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19507,7 +19458,8 @@ class TimelockStart {
                 throw takeObject(r1);
             }
             return TimelockStart.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19525,11 +19477,13 @@ class TimelockStart {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -19548,7 +19502,8 @@ class TimelockStart {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19569,7 +19524,8 @@ class TimelockStart {
                 throw takeObject(r1);
             }
             return TimelockStart.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19594,21 +19550,16 @@ module.exports.TimelockStart = TimelockStart;
 /**
 */
 class Transaction {
-
     static __wrap(ptr) {
         const obj = Object.create(Transaction.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transaction_free(ptr);
@@ -19625,7 +19576,8 @@ class Transaction {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19646,7 +19598,8 @@ class Transaction {
                 throw takeObject(r1);
             }
             return Transaction.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19664,11 +19617,13 @@ class Transaction {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -19687,7 +19642,8 @@ class Transaction {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19708,7 +19664,8 @@ class Transaction {
                 throw takeObject(r1);
             }
             return Transaction.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19768,21 +19725,16 @@ module.exports.Transaction = Transaction;
 /**
 */
 class TransactionBodies {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionBodies.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionbodies_free(ptr);
@@ -19799,7 +19751,8 @@ class TransactionBodies {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19820,7 +19773,8 @@ class TransactionBodies {
                 throw takeObject(r1);
             }
             return TransactionBodies.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19838,11 +19792,13 @@ class TransactionBodies {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -19861,7 +19817,8 @@ class TransactionBodies {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19882,7 +19839,8 @@ class TransactionBodies {
                 throw takeObject(r1);
             }
             return TransactionBodies.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19920,21 +19878,16 @@ module.exports.TransactionBodies = TransactionBodies;
 /**
 */
 class TransactionBody {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionBody.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionbody_free(ptr);
@@ -19951,7 +19904,8 @@ class TransactionBody {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19972,7 +19926,8 @@ class TransactionBody {
                 throw takeObject(r1);
             }
             return TransactionBody.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -19990,11 +19945,13 @@ class TransactionBody {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -20013,7 +19970,8 @@ class TransactionBody {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20034,7 +19992,8 @@ class TransactionBody {
                 throw takeObject(r1);
             }
             return TransactionBody.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20310,7 +20269,8 @@ class TransactionBody {
                 wasm.__wbindgen_free(r0, r1 * 1);
             }
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20319,21 +20279,16 @@ module.exports.TransactionBody = TransactionBody;
 /**
 */
 class TransactionBuilder {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionBuilder.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionbuilder_free(ptr);
@@ -20363,7 +20318,8 @@ class TransactionBuilder {
             if (r1) {
                 throw takeObject(r0);
             }
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20408,7 +20364,8 @@ class TransactionBuilder {
                 throw takeObject(r1);
             }
             return BigNum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20426,7 +20383,8 @@ class TransactionBuilder {
             if (r1) {
                 throw takeObject(r0);
             }
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20493,7 +20451,8 @@ class TransactionBuilder {
                 throw takeObject(r1);
             }
             return BigNum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20580,7 +20539,8 @@ class TransactionBuilder {
             if (r1) {
                 throw takeObject(r0);
             }
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20603,7 +20563,8 @@ class TransactionBuilder {
             if (r1) {
                 throw takeObject(r0);
             }
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20686,7 +20647,8 @@ class TransactionBuilder {
             if (r1) {
                 throw takeObject(r0);
             }
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20748,7 +20710,8 @@ class TransactionBuilder {
                 throw takeObject(r1);
             }
             return Value.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20767,7 +20730,8 @@ class TransactionBuilder {
                 throw takeObject(r1);
             }
             return Value.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20786,7 +20750,8 @@ class TransactionBuilder {
                 throw takeObject(r1);
             }
             return Value.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20805,7 +20770,8 @@ class TransactionBuilder {
                 throw takeObject(r1);
             }
             return Value.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20824,7 +20790,8 @@ class TransactionBuilder {
                 throw takeObject(r1);
             }
             return Value.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20842,7 +20809,8 @@ class TransactionBuilder {
                 throw takeObject(r1);
             }
             return BigNum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20876,7 +20844,8 @@ class TransactionBuilder {
             if (r1) {
                 throw takeObject(r0);
             }
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20898,7 +20867,8 @@ class TransactionBuilder {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20916,7 +20886,8 @@ class TransactionBuilder {
                 throw takeObject(r1);
             }
             return r0 >>> 0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20932,7 +20903,8 @@ class TransactionBuilder {
             var v0 = getArrayU32FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 4);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -20992,7 +20964,8 @@ class TransactionBuilder {
                 throw takeObject(r1);
             }
             return Transaction.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21013,7 +20986,8 @@ class TransactionBuilder {
                 throw takeObject(r1);
             }
             return BigNum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21022,21 +20996,16 @@ module.exports.TransactionBuilder = TransactionBuilder;
 /**
 */
 class TransactionBuilderConfig {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionBuilderConfig.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionbuilderconfig_free(ptr);
@@ -21046,21 +21015,16 @@ module.exports.TransactionBuilderConfig = TransactionBuilderConfig;
 /**
 */
 class TransactionBuilderConfigBuilder {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionBuilderConfigBuilder.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionbuilderconfigbuilder_free(ptr);
@@ -21202,7 +21166,8 @@ class TransactionBuilderConfigBuilder {
                 throw takeObject(r1);
             }
             return TransactionBuilderConfig.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21211,21 +21176,16 @@ module.exports.TransactionBuilderConfigBuilder = TransactionBuilderConfigBuilder
 /**
 */
 class TransactionHash {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionHash.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionhash_free(ptr);
@@ -21247,7 +21207,8 @@ class TransactionHash {
                 throw takeObject(r1);
             }
             return TransactionHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21263,7 +21224,8 @@ class TransactionHash {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21284,11 +21246,13 @@ class TransactionHash {
             var ptr1 = r0;
             var len1 = r1;
             if (r3) {
-                ptr1 = 0; len1 = 0;
+                ptr1 = 0;
+                len1 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr1, len1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr1, len1);
         }
@@ -21310,7 +21274,8 @@ class TransactionHash {
                 throw takeObject(r1);
             }
             return TransactionHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21324,7 +21289,8 @@ class TransactionHash {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -21346,7 +21312,8 @@ class TransactionHash {
                 throw takeObject(r1);
             }
             return TransactionHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21355,21 +21322,16 @@ module.exports.TransactionHash = TransactionHash;
 /**
 */
 class TransactionIndexes {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionIndexes.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionindexes_free(ptr);
@@ -21386,7 +21348,8 @@ class TransactionIndexes {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21407,7 +21370,8 @@ class TransactionIndexes {
                 throw takeObject(r1);
             }
             return TransactionIndexes.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21445,21 +21409,16 @@ module.exports.TransactionIndexes = TransactionIndexes;
 /**
 */
 class TransactionInput {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionInput.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactioninput_free(ptr);
@@ -21476,7 +21435,8 @@ class TransactionInput {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21497,7 +21457,8 @@ class TransactionInput {
                 throw takeObject(r1);
             }
             return TransactionInput.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21515,11 +21476,13 @@ class TransactionInput {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -21538,7 +21501,8 @@ class TransactionInput {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21559,7 +21523,8 @@ class TransactionInput {
                 throw takeObject(r1);
             }
             return TransactionInput.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21593,21 +21558,16 @@ module.exports.TransactionInput = TransactionInput;
 /**
 */
 class TransactionInputs {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionInputs.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactioninputs_free(ptr);
@@ -21624,7 +21584,8 @@ class TransactionInputs {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21645,7 +21606,8 @@ class TransactionInputs {
                 throw takeObject(r1);
             }
             return TransactionInputs.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21663,11 +21625,13 @@ class TransactionInputs {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -21686,7 +21650,8 @@ class TransactionInputs {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21707,7 +21672,8 @@ class TransactionInputs {
                 throw takeObject(r1);
             }
             return TransactionInputs.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21750,21 +21716,16 @@ module.exports.TransactionInputs = TransactionInputs;
 /**
 */
 class TransactionMetadatum {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionMetadatum.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionmetadatum_free(ptr);
@@ -21781,7 +21742,8 @@ class TransactionMetadatum {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21802,7 +21764,8 @@ class TransactionMetadatum {
                 throw takeObject(r1);
             }
             return TransactionMetadatum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21850,7 +21813,8 @@ class TransactionMetadatum {
                 throw takeObject(r1);
             }
             return TransactionMetadatum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21871,7 +21835,8 @@ class TransactionMetadatum {
                 throw takeObject(r1);
             }
             return TransactionMetadatum.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21896,7 +21861,8 @@ class TransactionMetadatum {
                 throw takeObject(r1);
             }
             return MetadataMap.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21914,7 +21880,8 @@ class TransactionMetadatum {
                 throw takeObject(r1);
             }
             return MetadataList.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21932,7 +21899,8 @@ class TransactionMetadatum {
                 throw takeObject(r1);
             }
             return Int.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21953,7 +21921,8 @@ class TransactionMetadatum {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -21971,11 +21940,13 @@ class TransactionMetadatum {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -21985,21 +21956,16 @@ module.exports.TransactionMetadatum = TransactionMetadatum;
 /**
 */
 class TransactionMetadatumLabels {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionMetadatumLabels.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionmetadatumlabels_free(ptr);
@@ -22016,7 +21982,8 @@ class TransactionMetadatumLabels {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22037,7 +22004,8 @@ class TransactionMetadatumLabels {
                 throw takeObject(r1);
             }
             return TransactionMetadatumLabels.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22075,21 +22043,16 @@ module.exports.TransactionMetadatumLabels = TransactionMetadatumLabels;
 /**
 */
 class TransactionOutput {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionOutput.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionoutput_free(ptr);
@@ -22106,7 +22069,8 @@ class TransactionOutput {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22127,7 +22091,8 @@ class TransactionOutput {
                 throw takeObject(r1);
             }
             return TransactionOutput.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22145,11 +22110,13 @@ class TransactionOutput {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -22168,7 +22135,8 @@ class TransactionOutput {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22189,7 +22157,8 @@ class TransactionOutput {
                 throw takeObject(r1);
             }
             return TransactionOutput.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22268,7 +22237,8 @@ class TransactionOutput {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22277,21 +22247,16 @@ module.exports.TransactionOutput = TransactionOutput;
 /**
 */
 class TransactionOutputAmountBuilder {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionOutputAmountBuilder.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionoutputamountbuilder_free(ptr);
@@ -22343,7 +22308,8 @@ class TransactionOutputAmountBuilder {
                 throw takeObject(r1);
             }
             return TransactionOutputAmountBuilder.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22361,7 +22327,8 @@ class TransactionOutputAmountBuilder {
                 throw takeObject(r1);
             }
             return TransactionOutput.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22375,21 +22342,16 @@ module.exports.TransactionOutputAmountBuilder = TransactionOutputAmountBuilder;
 * 3. Easier to adapt as the output format gets more complicated in future Cardano releases
 */
 class TransactionOutputBuilder {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionOutputBuilder.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionoutputbuilder_free(ptr);
@@ -22433,7 +22395,8 @@ class TransactionOutputBuilder {
                 throw takeObject(r1);
             }
             return TransactionOutputAmountBuilder.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22442,21 +22405,16 @@ module.exports.TransactionOutputBuilder = TransactionOutputBuilder;
 /**
 */
 class TransactionOutputs {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionOutputs.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionoutputs_free(ptr);
@@ -22473,7 +22431,8 @@ class TransactionOutputs {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22494,7 +22453,8 @@ class TransactionOutputs {
                 throw takeObject(r1);
             }
             return TransactionOutputs.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22512,11 +22472,13 @@ class TransactionOutputs {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -22535,7 +22497,8 @@ class TransactionOutputs {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22556,7 +22519,8 @@ class TransactionOutputs {
                 throw takeObject(r1);
             }
             return TransactionOutputs.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22594,21 +22558,16 @@ module.exports.TransactionOutputs = TransactionOutputs;
 /**
 */
 class TransactionUnspentOutput {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionUnspentOutput.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionunspentoutput_free(ptr);
@@ -22625,7 +22584,8 @@ class TransactionUnspentOutput {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22646,7 +22606,8 @@ class TransactionUnspentOutput {
                 throw takeObject(r1);
             }
             return TransactionUnspentOutput.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22687,7 +22648,8 @@ class TransactionUnspentOutput {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22696,21 +22658,16 @@ module.exports.TransactionUnspentOutput = TransactionUnspentOutput;
 /**
 */
 class TransactionUnspentOutputs {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionUnspentOutputs.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionunspentoutputs_free(ptr);
@@ -22749,21 +22706,16 @@ module.exports.TransactionUnspentOutputs = TransactionUnspentOutputs;
 /**
 */
 class TransactionWitnessSet {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionWitnessSet.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionwitnessset_free(ptr);
@@ -22780,7 +22732,8 @@ class TransactionWitnessSet {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22801,7 +22754,8 @@ class TransactionWitnessSet {
                 throw takeObject(r1);
             }
             return TransactionWitnessSet.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22819,11 +22773,13 @@ class TransactionWitnessSet {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -22842,7 +22798,8 @@ class TransactionWitnessSet {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22863,7 +22820,8 @@ class TransactionWitnessSet {
                 throw takeObject(r1);
             }
             return TransactionWitnessSet.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -22992,21 +22950,16 @@ module.exports.TransactionWitnessSet = TransactionWitnessSet;
 * Builder de-duplicates witnesses as they are added
 */
 class TransactionWitnessSetBuilder {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionWitnessSetBuilder.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionwitnesssetbuilder_free(ptr);
@@ -23095,7 +23048,8 @@ class TransactionWitnessSetBuilder {
                 throw takeObject(r1);
             }
             return TransactionWitnessSet.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23104,21 +23058,16 @@ module.exports.TransactionWitnessSetBuilder = TransactionWitnessSetBuilder;
 /**
 */
 class TransactionWitnessSets {
-
     static __wrap(ptr) {
         const obj = Object.create(TransactionWitnessSets.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_transactionwitnesssets_free(ptr);
@@ -23135,7 +23084,8 @@ class TransactionWitnessSets {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23156,7 +23106,8 @@ class TransactionWitnessSets {
                 throw takeObject(r1);
             }
             return TransactionWitnessSets.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23174,11 +23125,13 @@ class TransactionWitnessSets {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -23197,7 +23150,8 @@ class TransactionWitnessSets {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23218,7 +23172,8 @@ class TransactionWitnessSets {
                 throw takeObject(r1);
             }
             return TransactionWitnessSets.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23256,21 +23211,16 @@ module.exports.TransactionWitnessSets = TransactionWitnessSets;
 /**
 */
 class TreasuryWithdrawals {
-
     static __wrap(ptr) {
         const obj = Object.create(TreasuryWithdrawals.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_treasurywithdrawals_free(ptr);
@@ -23287,7 +23237,8 @@ class TreasuryWithdrawals {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23308,7 +23259,8 @@ class TreasuryWithdrawals {
                 throw takeObject(r1);
             }
             return TreasuryWithdrawals.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23326,11 +23278,13 @@ class TreasuryWithdrawals {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -23349,7 +23303,8 @@ class TreasuryWithdrawals {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23370,7 +23325,8 @@ class TreasuryWithdrawals {
                 throw takeObject(r1);
             }
             return TreasuryWithdrawals.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23420,21 +23376,16 @@ module.exports.TreasuryWithdrawals = TreasuryWithdrawals;
 /**
 */
 class TreasuryWithdrawalsAction {
-
     static __wrap(ptr) {
         const obj = Object.create(TreasuryWithdrawalsAction.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_treasurywithdrawalsaction_free(ptr);
@@ -23451,7 +23402,8 @@ class TreasuryWithdrawalsAction {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23472,7 +23424,8 @@ class TreasuryWithdrawalsAction {
                 throw takeObject(r1);
             }
             return TreasuryWithdrawalsAction.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23490,11 +23443,13 @@ class TreasuryWithdrawalsAction {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -23513,7 +23468,8 @@ class TreasuryWithdrawalsAction {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23534,7 +23490,8 @@ class TreasuryWithdrawalsAction {
                 throw takeObject(r1);
             }
             return TreasuryWithdrawalsAction.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23559,21 +23516,16 @@ module.exports.TreasuryWithdrawalsAction = TreasuryWithdrawalsAction;
 /**
 */
 class UnitInterval {
-
     static __wrap(ptr) {
         const obj = Object.create(UnitInterval.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_unitinterval_free(ptr);
@@ -23590,7 +23542,8 @@ class UnitInterval {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23611,7 +23564,8 @@ class UnitInterval {
                 throw takeObject(r1);
             }
             return UnitInterval.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23629,11 +23583,13 @@ class UnitInterval {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -23652,7 +23608,8 @@ class UnitInterval {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23673,7 +23630,8 @@ class UnitInterval {
                 throw takeObject(r1);
             }
             return UnitInterval.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23715,21 +23673,16 @@ module.exports.UnitInterval = UnitInterval;
 /**
 */
 class UnregCert {
-
     static __wrap(ptr) {
         const obj = Object.create(UnregCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_unregcert_free(ptr);
@@ -23746,7 +23699,8 @@ class UnregCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23767,7 +23721,8 @@ class UnregCert {
                 throw takeObject(r1);
             }
             return UnregCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23785,11 +23740,13 @@ class UnregCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -23808,7 +23765,8 @@ class UnregCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23829,7 +23787,8 @@ class UnregCert {
                 throw takeObject(r1);
             }
             return UnregCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23863,21 +23822,16 @@ module.exports.UnregCert = UnregCert;
 /**
 */
 class UnregCommitteeHotKeyCert {
-
     static __wrap(ptr) {
         const obj = Object.create(UnregCommitteeHotKeyCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_unregcommitteehotkeycert_free(ptr);
@@ -23894,7 +23848,8 @@ class UnregCommitteeHotKeyCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23915,7 +23870,8 @@ class UnregCommitteeHotKeyCert {
                 throw takeObject(r1);
             }
             return UnregCommitteeHotKeyCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23933,11 +23889,13 @@ class UnregCommitteeHotKeyCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -23956,7 +23914,8 @@ class UnregCommitteeHotKeyCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -23977,7 +23936,8 @@ class UnregCommitteeHotKeyCert {
                 throw takeObject(r1);
             }
             return UnregCommitteeHotKeyCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24002,21 +23962,16 @@ module.exports.UnregCommitteeHotKeyCert = UnregCommitteeHotKeyCert;
 /**
 */
 class UnregDrepCert {
-
     static __wrap(ptr) {
         const obj = Object.create(UnregDrepCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_unregdrepcert_free(ptr);
@@ -24033,7 +23988,8 @@ class UnregDrepCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24054,7 +24010,8 @@ class UnregDrepCert {
                 throw takeObject(r1);
             }
             return UnregDrepCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24072,11 +24029,13 @@ class UnregDrepCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -24095,7 +24054,8 @@ class UnregDrepCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24116,7 +24076,8 @@ class UnregDrepCert {
                 throw takeObject(r1);
             }
             return UnregDrepCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24150,21 +24111,16 @@ module.exports.UnregDrepCert = UnregDrepCert;
 /**
 */
 class Update {
-
     static __wrap(ptr) {
         const obj = Object.create(Update.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_update_free(ptr);
@@ -24181,7 +24137,8 @@ class Update {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24202,7 +24159,8 @@ class Update {
                 throw takeObject(r1);
             }
             return Update.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24220,11 +24178,13 @@ class Update {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -24243,7 +24203,8 @@ class Update {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24264,7 +24225,8 @@ class Update {
                 throw takeObject(r1);
             }
             return Update.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24297,21 +24259,16 @@ module.exports.Update = Update;
 /**
 */
 class Url {
-
     static __wrap(ptr) {
         const obj = Object.create(Url.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_url_free(ptr);
@@ -24328,7 +24285,8 @@ class Url {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24349,7 +24307,8 @@ class Url {
                 throw takeObject(r1);
             }
             return Url.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24370,7 +24329,8 @@ class Url {
                 throw takeObject(r1);
             }
             return Url.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24384,7 +24344,8 @@ class Url {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -24394,21 +24355,16 @@ module.exports.Url = Url;
 /**
 */
 class VRFCert {
-
     static __wrap(ptr) {
         const obj = Object.create(VRFCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_vrfcert_free(ptr);
@@ -24425,7 +24381,8 @@ class VRFCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24446,7 +24403,8 @@ class VRFCert {
                 throw takeObject(r1);
             }
             return VRFCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24464,11 +24422,13 @@ class VRFCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -24487,7 +24447,8 @@ class VRFCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24508,7 +24469,8 @@ class VRFCert {
                 throw takeObject(r1);
             }
             return VRFCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24524,7 +24486,8 @@ class VRFCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24540,7 +24503,8 @@ class VRFCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24564,7 +24528,8 @@ class VRFCert {
                 throw takeObject(r1);
             }
             return VRFCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24573,21 +24538,16 @@ module.exports.VRFCert = VRFCert;
 /**
 */
 class VRFKeyHash {
-
     static __wrap(ptr) {
         const obj = Object.create(VRFKeyHash.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_vrfkeyhash_free(ptr);
@@ -24609,7 +24569,8 @@ class VRFKeyHash {
                 throw takeObject(r1);
             }
             return VRFKeyHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24625,7 +24586,8 @@ class VRFKeyHash {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24646,11 +24608,13 @@ class VRFKeyHash {
             var ptr1 = r0;
             var len1 = r1;
             if (r3) {
-                ptr1 = 0; len1 = 0;
+                ptr1 = 0;
+                len1 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr1, len1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr1, len1);
         }
@@ -24672,7 +24636,8 @@ class VRFKeyHash {
                 throw takeObject(r1);
             }
             return VRFKeyHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24686,7 +24651,8 @@ class VRFKeyHash {
             var r0 = getInt32Memory0()[retptr / 4 + 0];
             var r1 = getInt32Memory0()[retptr / 4 + 1];
             return getStringFromWasm0(r0, r1);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(r0, r1);
         }
@@ -24708,7 +24674,8 @@ class VRFKeyHash {
                 throw takeObject(r1);
             }
             return VRFKeyHash.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24717,21 +24684,16 @@ module.exports.VRFKeyHash = VRFKeyHash;
 /**
 */
 class VRFVKey {
-
     static __wrap(ptr) {
         const obj = Object.create(VRFVKey.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_vrfvkey_free(ptr);
@@ -24748,7 +24710,8 @@ class VRFVKey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24769,7 +24732,8 @@ class VRFVKey {
                 throw takeObject(r1);
             }
             return VRFVKey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24792,7 +24756,8 @@ class VRFVKey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24801,21 +24766,16 @@ module.exports.VRFVKey = VRFVKey;
 /**
 */
 class Value {
-
     static __wrap(ptr) {
         const obj = Object.create(Value.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_value_free(ptr);
@@ -24832,7 +24792,8 @@ class Value {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24853,7 +24814,8 @@ class Value {
                 throw takeObject(r1);
             }
             return Value.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24871,11 +24833,13 @@ class Value {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -24894,7 +24858,8 @@ class Value {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24915,7 +24880,8 @@ class Value {
                 throw takeObject(r1);
             }
             return Value.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -24995,7 +24961,8 @@ class Value {
                 throw takeObject(r1);
             }
             return Value.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25015,7 +24982,8 @@ class Value {
                 throw takeObject(r1);
             }
             return Value.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25043,21 +25011,16 @@ module.exports.Value = Value;
 /**
 */
 class Vkey {
-
     static __wrap(ptr) {
         const obj = Object.create(Vkey.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_vkey_free(ptr);
@@ -25074,7 +25037,8 @@ class Vkey {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25095,7 +25059,8 @@ class Vkey {
                 throw takeObject(r1);
             }
             return Vkey.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25120,21 +25085,16 @@ module.exports.Vkey = Vkey;
 /**
 */
 class Vkeys {
-
     static __wrap(ptr) {
         const obj = Object.create(Vkeys.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_vkeys_free(ptr);
@@ -25173,21 +25133,16 @@ module.exports.Vkeys = Vkeys;
 /**
 */
 class Vkeywitness {
-
     static __wrap(ptr) {
         const obj = Object.create(Vkeywitness.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_vkeywitness_free(ptr);
@@ -25204,7 +25159,8 @@ class Vkeywitness {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25225,7 +25181,8 @@ class Vkeywitness {
                 throw takeObject(r1);
             }
             return Vkeywitness.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25243,11 +25200,13 @@ class Vkeywitness {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -25266,7 +25225,8 @@ class Vkeywitness {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25287,7 +25247,8 @@ class Vkeywitness {
                 throw takeObject(r1);
             }
             return Vkeywitness.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25321,21 +25282,16 @@ module.exports.Vkeywitness = Vkeywitness;
 /**
 */
 class Vkeywitnesses {
-
     static __wrap(ptr) {
         const obj = Object.create(Vkeywitnesses.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_vkeywitnesses_free(ptr);
@@ -25374,21 +25330,16 @@ module.exports.Vkeywitnesses = Vkeywitnesses;
 /**
 */
 class Vote {
-
     static __wrap(ptr) {
         const obj = Object.create(Vote.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_vote_free(ptr);
@@ -25405,7 +25356,8 @@ class Vote {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25426,7 +25378,8 @@ class Vote {
                 throw takeObject(r1);
             }
             return Vote.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25444,11 +25397,13 @@ class Vote {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -25467,7 +25422,8 @@ class Vote {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25488,7 +25444,8 @@ class Vote {
                 throw takeObject(r1);
             }
             return Vote.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25525,21 +25482,16 @@ module.exports.Vote = Vote;
 /**
 */
 class VoteDelegCert {
-
     static __wrap(ptr) {
         const obj = Object.create(VoteDelegCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_votedelegcert_free(ptr);
@@ -25556,7 +25508,8 @@ class VoteDelegCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25577,7 +25530,8 @@ class VoteDelegCert {
                 throw takeObject(r1);
             }
             return VoteDelegCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25595,11 +25549,13 @@ class VoteDelegCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -25618,7 +25574,8 @@ class VoteDelegCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25639,7 +25596,8 @@ class VoteDelegCert {
                 throw takeObject(r1);
             }
             return VoteDelegCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25673,21 +25631,16 @@ module.exports.VoteDelegCert = VoteDelegCert;
 /**
 */
 class VoteRegDelegCert {
-
     static __wrap(ptr) {
         const obj = Object.create(VoteRegDelegCert.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_voteregdelegcert_free(ptr);
@@ -25704,7 +25657,8 @@ class VoteRegDelegCert {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25725,7 +25679,8 @@ class VoteRegDelegCert {
                 throw takeObject(r1);
             }
             return VoteRegDelegCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25743,11 +25698,13 @@ class VoteRegDelegCert {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -25766,7 +25723,8 @@ class VoteRegDelegCert {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25787,7 +25745,8 @@ class VoteRegDelegCert {
                 throw takeObject(r1);
             }
             return VoteRegDelegCert.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25830,21 +25789,16 @@ module.exports.VoteRegDelegCert = VoteRegDelegCert;
 /**
 */
 class Voter {
-
     static __wrap(ptr) {
         const obj = Object.create(Voter.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_voter_free(ptr);
@@ -25861,7 +25815,8 @@ class Voter {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25882,7 +25837,8 @@ class Voter {
                 throw takeObject(r1);
             }
             return Voter.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25900,11 +25856,13 @@ class Voter {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -25923,7 +25881,8 @@ class Voter {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -25944,7 +25903,8 @@ class Voter {
                 throw takeObject(r1);
             }
             return Voter.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -26040,21 +26000,16 @@ module.exports.Voter = Voter;
 /**
 */
 class VotingProcedure {
-
     static __wrap(ptr) {
         const obj = Object.create(VotingProcedure.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_votingprocedure_free(ptr);
@@ -26071,7 +26026,8 @@ class VotingProcedure {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -26092,7 +26048,8 @@ class VotingProcedure {
                 throw takeObject(r1);
             }
             return VotingProcedure.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -26110,11 +26067,13 @@ class VotingProcedure {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -26133,7 +26092,8 @@ class VotingProcedure {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -26154,7 +26114,8 @@ class VotingProcedure {
                 throw takeObject(r1);
             }
             return VotingProcedure.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -26206,21 +26167,16 @@ module.exports.VotingProcedure = VotingProcedure;
 /**
 */
 class VotingProcedures {
-
     static __wrap(ptr) {
         const obj = Object.create(VotingProcedures.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_votingprocedures_free(ptr);
@@ -26237,7 +26193,8 @@ class VotingProcedures {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -26258,7 +26215,8 @@ class VotingProcedures {
                 throw takeObject(r1);
             }
             return VotingProcedures.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -26296,21 +26254,16 @@ module.exports.VotingProcedures = VotingProcedures;
 /**
 */
 class Withdrawals {
-
     static __wrap(ptr) {
         const obj = Object.create(Withdrawals.prototype);
         obj.ptr = ptr;
-
         return obj;
     }
-
     __destroy_into_raw() {
         const ptr = this.ptr;
         this.ptr = 0;
-
         return ptr;
     }
-
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_withdrawals_free(ptr);
@@ -26327,7 +26280,8 @@ class Withdrawals {
             var v0 = getArrayU8FromWasm0(r0, r1).slice();
             wasm.__wbindgen_free(r0, r1 * 1);
             return v0;
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -26348,7 +26302,8 @@ class Withdrawals {
                 throw takeObject(r1);
             }
             return Withdrawals.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -26366,11 +26321,13 @@ class Withdrawals {
             var ptr0 = r0;
             var len0 = r1;
             if (r3) {
-                ptr0 = 0; len0 = 0;
+                ptr0 = 0;
+                len0 = 0;
                 throw takeObject(r2);
             }
             return getStringFromWasm0(ptr0, len0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_free(ptr0, len0);
         }
@@ -26389,7 +26346,8 @@ class Withdrawals {
                 throw takeObject(r1);
             }
             return takeObject(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -26410,7 +26368,8 @@ class Withdrawals {
                 throw takeObject(r1);
             }
             return Withdrawals.__wrap(r0);
-        } finally {
+        }
+        finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
@@ -26457,17 +26416,14 @@ class Withdrawals {
     }
 }
 module.exports.Withdrawals = Withdrawals;
-
-module.exports.__wbindgen_object_drop_ref = function(arg0) {
+module.exports.__wbindgen_object_drop_ref = function (arg0) {
     takeObject(arg0);
 };
-
-module.exports.__wbindgen_json_parse = function(arg0, arg1) {
+module.exports.__wbindgen_json_parse = function (arg0, arg1) {
     const ret = JSON.parse(getStringFromWasm0(arg0, arg1));
     return addHeapObject(ret);
 };
-
-module.exports.__wbindgen_json_serialize = function(arg0, arg1) {
+module.exports.__wbindgen_json_serialize = function (arg0, arg1) {
     const obj = getObject(arg1);
     const ret = JSON.stringify(obj === undefined ? null : obj);
     const ptr0 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
@@ -26475,67 +26431,63 @@ module.exports.__wbindgen_json_serialize = function(arg0, arg1) {
     getInt32Memory0()[arg0 / 4 + 1] = len0;
     getInt32Memory0()[arg0 / 4 + 0] = ptr0;
 };
-
-module.exports.__wbindgen_string_new = function(arg0, arg1) {
+module.exports.__wbindgen_string_new = function (arg0, arg1) {
     const ret = getStringFromWasm0(arg0, arg1);
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_fetch_16f5dddfc5a913a4 = function(arg0, arg1) {
+module.exports.__wbg_fetch_16f5dddfc5a913a4 = function (arg0, arg1) {
     const ret = getObject(arg0).fetch(getObject(arg1));
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_transaction_new = function(arg0) {
+module.exports.__wbg_transaction_new = function (arg0) {
     const ret = Transaction.__wrap(arg0);
     return addHeapObject(ret);
 };
-
-module.exports.__wbindgen_string_get = function(arg0, arg1) {
+module.exports.__wbindgen_string_get = function (arg0, arg1) {
     const obj = getObject(arg1);
-    const ret = typeof(obj) === 'string' ? obj : undefined;
+    const ret = typeof (obj) === 'string' ? obj : undefined;
     var ptr0 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     var len0 = WASM_VECTOR_LEN;
     getInt32Memory0()[arg0 / 4 + 1] = len0;
     getInt32Memory0()[arg0 / 4 + 0] = ptr0;
 };
-
-module.exports.__wbindgen_object_clone_ref = function(arg0) {
+module.exports.__wbindgen_object_clone_ref = function (arg0) {
     const ret = getObject(arg0);
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_set_a5d34c36a1a4ebd1 = function() { return handleError(function (arg0, arg1, arg2, arg3, arg4) {
-    getObject(arg0).set(getStringFromWasm0(arg1, arg2), getStringFromWasm0(arg3, arg4));
-}, arguments) };
-
-module.exports.__wbg_headers_ab5251d2727ac41e = function(arg0) {
+module.exports.__wbg_set_a5d34c36a1a4ebd1 = function () {
+    return handleError(function (arg0, arg1, arg2, arg3, arg4) {
+        getObject(arg0).set(getStringFromWasm0(arg1, arg2), getStringFromWasm0(arg3, arg4));
+    }, arguments);
+};
+module.exports.__wbg_headers_ab5251d2727ac41e = function (arg0) {
     const ret = getObject(arg0).headers;
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_newwithstrandinit_c45f0dc6da26fd03 = function() { return handleError(function (arg0, arg1, arg2) {
-    const ret = new Request(getStringFromWasm0(arg0, arg1), getObject(arg2));
-    return addHeapObject(ret);
-}, arguments) };
-
-module.exports.__wbg_instanceof_Response_fb3a4df648c1859b = function(arg0) {
+module.exports.__wbg_newwithstrandinit_c45f0dc6da26fd03 = function () {
+    return handleError(function (arg0, arg1, arg2) {
+        const ret = new Request(getStringFromWasm0(arg0, arg1), getObject(arg2));
+        return addHeapObject(ret);
+    }, arguments);
+};
+module.exports.__wbg_instanceof_Response_fb3a4df648c1859b = function (arg0) {
     let result;
     try {
         result = getObject(arg0) instanceof Response;
-    } catch {
+    }
+    catch {
         result = false;
     }
     const ret = result;
     return ret;
 };
-
-module.exports.__wbg_json_b9414eb18cb751d0 = function() { return handleError(function (arg0) {
-    const ret = getObject(arg0).json();
-    return addHeapObject(ret);
-}, arguments) };
-
-module.exports.__wbindgen_cb_drop = function(arg0) {
+module.exports.__wbg_json_b9414eb18cb751d0 = function () {
+    return handleError(function (arg0) {
+        const ret = getObject(arg0).json();
+        return addHeapObject(ret);
+    }, arguments);
+};
+module.exports.__wbindgen_cb_drop = function (arg0) {
     const obj = takeObject(arg0).original;
     if (obj.cnt-- == 1) {
         obj.a = 0;
@@ -26544,244 +26496,219 @@ module.exports.__wbindgen_cb_drop = function(arg0) {
     const ret = false;
     return ret;
 };
-
-module.exports.__wbg_process_5615a087a47ba544 = function(arg0) {
+module.exports.__wbg_process_5615a087a47ba544 = function (arg0) {
     const ret = getObject(arg0).process;
     return addHeapObject(ret);
 };
-
-module.exports.__wbindgen_is_object = function(arg0) {
+module.exports.__wbindgen_is_object = function (arg0) {
     const val = getObject(arg0);
-    const ret = typeof(val) === 'object' && val !== null;
+    const ret = typeof (val) === 'object' && val !== null;
     return ret;
 };
-
-module.exports.__wbg_versions_8404a8b21b9337ae = function(arg0) {
+module.exports.__wbg_versions_8404a8b21b9337ae = function (arg0) {
     const ret = getObject(arg0).versions;
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_node_8b504e170b6380b9 = function(arg0) {
+module.exports.__wbg_node_8b504e170b6380b9 = function (arg0) {
     const ret = getObject(arg0).node;
     return addHeapObject(ret);
 };
-
-module.exports.__wbindgen_is_string = function(arg0) {
-    const ret = typeof(getObject(arg0)) === 'string';
+module.exports.__wbindgen_is_string = function (arg0) {
+    const ret = typeof (getObject(arg0)) === 'string';
     return ret;
 };
-
-module.exports.__wbg_require_0430b68b38d1a77e = function() { return handleError(function (arg0, arg1, arg2) {
-    const ret = getObject(arg0).require(getStringFromWasm0(arg1, arg2));
-    return addHeapObject(ret);
-}, arguments) };
-
-module.exports.__wbg_crypto_ca5197b41df5e2bd = function(arg0) {
+module.exports.__wbg_require_0430b68b38d1a77e = function () {
+    return handleError(function (arg0, arg1, arg2) {
+        const ret = getObject(arg0).require(getStringFromWasm0(arg1, arg2));
+        return addHeapObject(ret);
+    }, arguments);
+};
+module.exports.__wbg_crypto_ca5197b41df5e2bd = function (arg0) {
     const ret = getObject(arg0).crypto;
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_msCrypto_1088c21440b2d7e4 = function(arg0) {
+module.exports.__wbg_msCrypto_1088c21440b2d7e4 = function (arg0) {
     const ret = getObject(arg0).msCrypto;
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_static_accessor_NODE_MODULE_06b864c18e8ae506 = function() {
+module.exports.__wbg_static_accessor_NODE_MODULE_06b864c18e8ae506 = function () {
     const ret = module;
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_randomFillSync_2f6909f8132a175d = function() { return handleError(function (arg0, arg1, arg2) {
-    getObject(arg0).randomFillSync(getArrayU8FromWasm0(arg1, arg2));
-}, arguments) };
-
-module.exports.__wbg_getRandomValues_11a236fbf9914290 = function() { return handleError(function (arg0, arg1) {
-    getObject(arg0).getRandomValues(getObject(arg1));
-}, arguments) };
-
-module.exports.__wbg_self_e7c1f827057f6584 = function() { return handleError(function () {
-    const ret = self.self;
-    return addHeapObject(ret);
-}, arguments) };
-
-module.exports.__wbg_window_a09ec664e14b1b81 = function() { return handleError(function () {
-    const ret = window.window;
-    return addHeapObject(ret);
-}, arguments) };
-
-module.exports.__wbg_globalThis_87cbb8506fecf3a9 = function() { return handleError(function () {
-    const ret = globalThis.globalThis;
-    return addHeapObject(ret);
-}, arguments) };
-
-module.exports.__wbg_global_c85a9259e621f3db = function() { return handleError(function () {
-    const ret = global.global;
-    return addHeapObject(ret);
-}, arguments) };
-
-module.exports.__wbindgen_is_undefined = function(arg0) {
+module.exports.__wbg_randomFillSync_2f6909f8132a175d = function () {
+    return handleError(function (arg0, arg1, arg2) {
+        getObject(arg0).randomFillSync(getArrayU8FromWasm0(arg1, arg2));
+    }, arguments);
+};
+module.exports.__wbg_getRandomValues_11a236fbf9914290 = function () {
+    return handleError(function (arg0, arg1) {
+        getObject(arg0).getRandomValues(getObject(arg1));
+    }, arguments);
+};
+module.exports.__wbg_self_e7c1f827057f6584 = function () {
+    return handleError(function () {
+        const ret = self.self;
+        return addHeapObject(ret);
+    }, arguments);
+};
+module.exports.__wbg_window_a09ec664e14b1b81 = function () {
+    return handleError(function () {
+        const ret = globalThis.window;
+        return addHeapObject(ret);
+    }, arguments);
+};
+module.exports.__wbg_globalThis_87cbb8506fecf3a9 = function () {
+    return handleError(function () {
+        const ret = globalThis.globalThis;
+        return addHeapObject(ret);
+    }, arguments);
+};
+module.exports.__wbg_global_c85a9259e621f3db = function () {
+    return handleError(function () {
+        const ret = global.global;
+        return addHeapObject(ret);
+    }, arguments);
+};
+module.exports.__wbindgen_is_undefined = function (arg0) {
     const ret = getObject(arg0) === undefined;
     return ret;
 };
-
-module.exports.__wbg_newnoargs_2b8b6bd7753c76ba = function(arg0, arg1) {
+module.exports.__wbg_newnoargs_2b8b6bd7753c76ba = function (arg0, arg1) {
     const ret = new Function(getStringFromWasm0(arg0, arg1));
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_call_95d1ea488d03e4e8 = function() { return handleError(function (arg0, arg1) {
-    const ret = getObject(arg0).call(getObject(arg1));
-    return addHeapObject(ret);
-}, arguments) };
-
-module.exports.__wbg_new_f9876326328f45ed = function() {
+module.exports.__wbg_call_95d1ea488d03e4e8 = function () {
+    return handleError(function (arg0, arg1) {
+        const ret = getObject(arg0).call(getObject(arg1));
+        return addHeapObject(ret);
+    }, arguments);
+};
+module.exports.__wbg_new_f9876326328f45ed = function () {
     const ret = new Object();
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_call_9495de66fdbe016b = function() { return handleError(function (arg0, arg1, arg2) {
-    const ret = getObject(arg0).call(getObject(arg1), getObject(arg2));
-    return addHeapObject(ret);
-}, arguments) };
-
-module.exports.__wbg_set_6aa458a4ebdb65cb = function() { return handleError(function (arg0, arg1, arg2) {
-    const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
-    return ret;
-}, arguments) };
-
-module.exports.__wbg_buffer_cf65c07de34b9a08 = function(arg0) {
+module.exports.__wbg_call_9495de66fdbe016b = function () {
+    return handleError(function (arg0, arg1, arg2) {
+        const ret = getObject(arg0).call(getObject(arg1), getObject(arg2));
+        return addHeapObject(ret);
+    }, arguments);
+};
+module.exports.__wbg_set_6aa458a4ebdb65cb = function () {
+    return handleError(function (arg0, arg1, arg2) {
+        const ret = Reflect.set(getObject(arg0), getObject(arg1), getObject(arg2));
+        return ret;
+    }, arguments);
+};
+module.exports.__wbg_buffer_cf65c07de34b9a08 = function (arg0) {
     const ret = getObject(arg0).buffer;
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_new_9d3a9ce4282a18a8 = function(arg0, arg1) {
+module.exports.__wbg_new_9d3a9ce4282a18a8 = function (arg0, arg1) {
     try {
-        var state0 = {a: arg0, b: arg1};
+        var state0 = { a: arg0, b: arg1 };
         var cb0 = (arg0, arg1) => {
             const a = state0.a;
             state0.a = 0;
             try {
                 return __wbg_adapter_1680(a, state0.b, arg0, arg1);
-            } finally {
+            }
+            finally {
                 state0.a = a;
             }
         };
         const ret = new Promise(cb0);
         return addHeapObject(ret);
-    } finally {
+    }
+    finally {
         state0.a = state0.b = 0;
     }
 };
-
-module.exports.__wbg_resolve_fd40f858d9db1a04 = function(arg0) {
+module.exports.__wbg_resolve_fd40f858d9db1a04 = function (arg0) {
     const ret = Promise.resolve(getObject(arg0));
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_then_ec5db6d509eb475f = function(arg0, arg1) {
+module.exports.__wbg_then_ec5db6d509eb475f = function (arg0, arg1) {
     const ret = getObject(arg0).then(getObject(arg1));
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_then_f753623316e2873a = function(arg0, arg1, arg2) {
+module.exports.__wbg_then_f753623316e2873a = function (arg0, arg1, arg2) {
     const ret = getObject(arg0).then(getObject(arg1), getObject(arg2));
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_new_537b7341ce90bb31 = function(arg0) {
+module.exports.__wbg_new_537b7341ce90bb31 = function (arg0) {
     const ret = new Uint8Array(getObject(arg0));
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_set_17499e8aa4003ebd = function(arg0, arg1, arg2) {
+module.exports.__wbg_set_17499e8aa4003ebd = function (arg0, arg1, arg2) {
     getObject(arg0).set(getObject(arg1), arg2 >>> 0);
 };
-
-module.exports.__wbg_length_27a2afe8ab42b09f = function(arg0) {
+module.exports.__wbg_length_27a2afe8ab42b09f = function (arg0) {
     const ret = getObject(arg0).length;
     return ret;
 };
-
-module.exports.__wbg_newwithlength_b56c882b57805732 = function(arg0) {
+module.exports.__wbg_newwithlength_b56c882b57805732 = function (arg0) {
     const ret = new Uint8Array(arg0 >>> 0);
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_subarray_7526649b91a252a6 = function(arg0, arg1, arg2) {
+module.exports.__wbg_subarray_7526649b91a252a6 = function (arg0, arg1, arg2) {
     const ret = getObject(arg0).subarray(arg1 >>> 0, arg2 >>> 0);
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_new_d87f272aec784ec0 = function(arg0, arg1) {
+module.exports.__wbg_new_d87f272aec784ec0 = function (arg0, arg1) {
     const ret = new Function(getStringFromWasm0(arg0, arg1));
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_call_eae29933372a39be = function(arg0, arg1) {
+module.exports.__wbg_call_eae29933372a39be = function (arg0, arg1) {
     const ret = getObject(arg0).call(getObject(arg1));
     return addHeapObject(ret);
 };
-
-module.exports.__wbindgen_jsval_eq = function(arg0, arg1) {
+module.exports.__wbindgen_jsval_eq = function (arg0, arg1) {
     const ret = getObject(arg0) === getObject(arg1);
     return ret;
 };
-
-module.exports.__wbg_self_e0b3266d2d9eba1a = function(arg0) {
+module.exports.__wbg_self_e0b3266d2d9eba1a = function (arg0) {
     const ret = getObject(arg0).self;
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_require_0993fe224bf8e202 = function(arg0, arg1) {
+module.exports.__wbg_require_0993fe224bf8e202 = function (arg0, arg1) {
     const ret = require(getStringFromWasm0(arg0, arg1));
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_crypto_e95a6e54c5c2e37f = function(arg0) {
+module.exports.__wbg_crypto_e95a6e54c5c2e37f = function (arg0) {
     const ret = getObject(arg0).crypto;
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_getRandomValues_dc67302a7bd1aec5 = function(arg0) {
+module.exports.__wbg_getRandomValues_dc67302a7bd1aec5 = function (arg0) {
     const ret = getObject(arg0).getRandomValues;
     return addHeapObject(ret);
 };
-
-module.exports.__wbg_randomFillSync_dd2297de5917c74e = function(arg0, arg1, arg2) {
+module.exports.__wbg_randomFillSync_dd2297de5917c74e = function (arg0, arg1, arg2) {
     getObject(arg0).randomFillSync(getArrayU8FromWasm0(arg1, arg2));
 };
-
-module.exports.__wbg_getRandomValues_02639197c8166a96 = function(arg0, arg1, arg2) {
+module.exports.__wbg_getRandomValues_02639197c8166a96 = function (arg0, arg1, arg2) {
     getObject(arg0).getRandomValues(getArrayU8FromWasm0(arg1, arg2));
 };
-
-module.exports.__wbindgen_debug_string = function(arg0, arg1) {
+module.exports.__wbindgen_debug_string = function (arg0, arg1) {
     const ret = debugString(getObject(arg1));
     const ptr0 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
     const len0 = WASM_VECTOR_LEN;
     getInt32Memory0()[arg0 / 4 + 1] = len0;
     getInt32Memory0()[arg0 / 4 + 0] = ptr0;
 };
-
-module.exports.__wbindgen_throw = function(arg0, arg1) {
+module.exports.__wbindgen_throw = function (arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
 };
-
-module.exports.__wbindgen_memory = function() {
+module.exports.__wbindgen_memory = function () {
     const ret = wasm.memory;
     return addHeapObject(ret);
 };
-
-module.exports.__wbindgen_closure_wrapper7029 = function(arg0, arg1, arg2) {
+module.exports.__wbindgen_closure_wrapper7029 = function (arg0, arg1, arg2) {
     const ret = makeMutClosure(arg0, arg1, 200, __wbg_adapter_30);
     return addHeapObject(ret);
 };
-
 const path = require('path').join(__dirname, 'cardano_multiplatform_lib_bg.wasm');
 const bytes = require('fs').readFileSync(path);
-
 const wasmModule = new WebAssembly.Module(bytes);
 const wasmInstance = new WebAssembly.Instance(wasmModule, imports);
 wasm = wasmInstance.exports;
 module.exports.__wasm = wasm;
-
