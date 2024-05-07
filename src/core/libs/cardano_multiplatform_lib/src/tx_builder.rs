@@ -2580,26 +2580,27 @@ impl TransactionBuilder {
                     .collect();
 
                 loop {
-                    let collateral = this.collateral.clone().unwrap_or(Vec::new());
-                    match this.update_collateral_and_balance(
-                        &collateral,
-                        &collateral_change_address.clone().unwrap(),
-                    ) {
-                        Ok(_) => {
-                            break;
-                        }
-                        Err(_) => (),
-                    };
+                    let collateral = this.collateral.clone().unwrap_or_default();
 
                     if collateral.len() as u32 >= this.config.max_collateral_inputs {
                         return Err(JsError::from_str("Max collateral inputs reached"));
                     }
-                    if available_collateral.len() <= 0 {
+                    if available_collateral.is_empty() {
                         return Err(JsError::from_str("Insufficient collateral balance"));
                     }
 
                     let utxo = available_collateral.pop().unwrap();
                     this.add_collateral(&utxo)?;
+                    let updated_collateral = this.collateral.clone().unwrap_or_default();
+                    if this
+                        .update_collateral_and_balance(
+                            &updated_collateral,
+                            &collateral_change_address.clone().unwrap(),
+                        )
+                        .is_ok()
+                    {
+                        break;
+                    };
                 }
 
                 let (final_body, final_full_tx_size) = this.build_and_size()?;

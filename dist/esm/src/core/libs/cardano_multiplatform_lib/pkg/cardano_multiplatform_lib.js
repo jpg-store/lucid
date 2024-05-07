@@ -185,7 +185,7 @@ function makeMutClosure(arg0, arg1, dtor, f) {
     return real;
 }
 function __wbg_adapter_30(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures__invoke1_mut__h6969f55afe8abf76(arg0, arg1, addHeapObject(arg2));
+    wasm._dyn_core__ops__function__FnMut__A____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__hc505ee491f612fba(arg0, arg1, addHeapObject(arg2));
 }
 function _assertClass(instance, klass) {
     if (!(instance instanceof klass)) {
@@ -708,7 +708,7 @@ function handleError(f, args) {
     }
 }
 function __wbg_adapter_1680(arg0, arg1, arg2, arg3) {
-    wasm.wasm_bindgen__convert__closures__invoke2_mut__h74be858885f6b6fa(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
+    wasm.wasm_bindgen__convert__closures__invoke2_mut__h88437d616e0f0e17(arg0, arg1, addHeapObject(arg2), addHeapObject(arg3));
 }
 /**
 */
@@ -25957,7 +25957,7 @@ class Voter {
     * @returns {number}
     */
     kind() {
-        const ret = wasm.voter_kind(this.ptr);
+        const ret = wasm.redeemertag_kind(this.ptr);
         return ret >>> 0;
     }
     /**
@@ -26419,6 +26419,10 @@ module.exports.Withdrawals = Withdrawals;
 module.exports.__wbindgen_object_drop_ref = function (arg0) {
     takeObject(arg0);
 };
+module.exports.__wbindgen_string_new = function (arg0, arg1) {
+    const ret = getStringFromWasm0(arg0, arg1);
+    return addHeapObject(ret);
+};
 module.exports.__wbindgen_json_parse = function (arg0, arg1) {
     const ret = JSON.parse(getStringFromWasm0(arg0, arg1));
     return addHeapObject(ret);
@@ -26430,10 +26434,6 @@ module.exports.__wbindgen_json_serialize = function (arg0, arg1) {
     const len0 = WASM_VECTOR_LEN;
     getInt32Memory0()[arg0 / 4 + 1] = len0;
     getInt32Memory0()[arg0 / 4 + 0] = ptr0;
-};
-module.exports.__wbindgen_string_new = function (arg0, arg1) {
-    const ret = getStringFromWasm0(arg0, arg1);
-    return addHeapObject(ret);
 };
 module.exports.__wbg_fetch_16f5dddfc5a913a4 = function (arg0, arg1) {
     const ret = getObject(arg0).fetch(getObject(arg1));
@@ -26702,8 +26702,8 @@ module.exports.__wbindgen_memory = function () {
     const ret = wasm.memory;
     return addHeapObject(ret);
 };
-module.exports.__wbindgen_closure_wrapper7029 = function (arg0, arg1, arg2) {
-    const ret = makeMutClosure(arg0, arg1, 200, __wbg_adapter_30);
+module.exports.__wbindgen_closure_wrapper7060 = function (arg0, arg1, arg2) {
+    const ret = makeMutClosure(arg0, arg1, 230, __wbg_adapter_30);
     return addHeapObject(ret);
 };
 const path = require('path').join(__dirname, 'cardano_multiplatform_lib_bg.wasm');
