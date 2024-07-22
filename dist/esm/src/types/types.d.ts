@@ -1,6 +1,5 @@
 import { C } from "../core/mod.js";
-type CostModel = Record<string, number>;
-export type CostModels = Record<PlutusVersion, CostModel>;
+export type CostModels = Record<PlutusVersion, Array<number>>;
 export interface Configuration {
     enableChangeSplitting: boolean;
     changeNativeAssetChunkSize: number;
@@ -252,4 +251,3 @@ export type Metadata = {
         decimals?: number;
     };
 };
-export {};
